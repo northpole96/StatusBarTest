@@ -61,7 +61,7 @@ sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: 
 
 fun BottomNavBar(navController: NavController, items: List<BottomNavItem>,onItemClick: (BottomNavItem) -> Unit ) {
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
-
+//hello first commit
     NavigationBar {
         items.forEach { item ->
             NavigationBarItem(
