@@ -1,0 +1,415 @@
+package com.example.statusbartest
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import android.app.DatePickerDialog
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.statusbartest.ui.theme.StatusBarTestTheme
+import android.view.Window
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.filled.Add
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+
+
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.compose.currentBackStackEntryAsState
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String) {
+    object Home : BottomNavItem("home", Icons.Default.Home, "Home")
+    object Search : BottomNavItem("search", Icons.Default.Search, "Search")
+    object Profile : BottomNavItem("profile", Icons.Default.Person, "Profile")
+    object Settings : BottomNavItem("settings", Icons.Default.Settings, "Settings")
+    object Info : BottomNavItem("info", Icons.Default.Info, "Info")
+}
+
+
+@Composable
+
+fun BottomNavBar(navController: NavController, items: List<BottomNavItem>,onItemClick: (BottomNavItem) -> Unit ) {
+    val currentDestination = navController.currentBackStackEntryAsState().value?.destination
+
+    NavigationBar {
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = { Icon(item.icon, contentDescription = item.label) },
+                label = { Text(item.label) },
+                selected = currentDestination?.route == item.route,
+                onClick = {
+                  onItemClick(item)
+                })
+        }
+    }
+}
+@Composable
+fun CustomDigitKeyboard(input: String, onInputChange: (String) -> Unit) {
+    val buttons = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf(".", "0", "Del"),
+        listOf("Clear")
+    )
+
+    Column {
+        buttons.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                row.forEach { label ->
+                    Button(
+                        onClick = {
+                            when (label) {
+                                in "0".."9" -> {
+                                    val updated = input + label
+                                    if (isValidInput(updated)) {
+                                        onInputChange(updated)
+                                    }
+                                }
+
+                                "." -> {
+                                    if (!input.contains(".")) {
+                                        onInputChange(input + ".")
+                                    }
+                                }
+
+                                "Del" -> {
+                                    if (input.isNotEmpty()) {
+                                        onInputChange(input.dropLast(1))
+                                    }
+                                }
+
+                                "Clear" -> {
+                                    onInputChange("")
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .weight(1f)
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun isValidInput(input: String): Boolean {
+    if (input.count { it == '.' } > 1) return false
+    val parts = input.split(".")
+    return if (parts.size == 2) {
+        parts[1].length <= 2
+    } else true
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddTransactionBottomSheet(
+    onDismiss: () -> Unit,
+    viewModel: TransactionViewModel
+) {
+    var input by remember { mutableStateOf("") }
+    var transactionType by remember { mutableStateOf("Expense") }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    val context = LocalContext.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = null,
+        containerColor = Color.White,
+        tonalElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Add Transaction", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "$input",
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier.padding(8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            CustomDigitKeyboard(input = input, onInputChange = { input = it })
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Date Picker Button
+            Button(onClick = {
+                val datePickerDialog = DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+                    },
+                    selectedDate.year,
+                    selectedDate.monthValue - 1,
+                    selectedDate.dayOfMonth
+                )
+                datePickerDialog.show()
+            }) {
+                Text("Date: $selectedDate")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Transaction Type Toggle
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text("Type: ")
+                Spacer(modifier = Modifier.width(8.dp))
+
+                val options = listOf("Expense", "Income")
+                options.forEach { option ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        RadioButton(
+                            selected = transactionType == option,
+                            onClick = { transactionType = option }
+                        )
+                        Text(option)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(onClick = {
+                if (input.isNotEmpty()) {
+                    try {
+                        // Save transaction to database
+                        viewModel.insert(
+                            amount = input.toDouble(),
+                            type = transactionType,
+                            date = selectedDate
+                        )
+                        onDismiss()
+                    } catch (e: NumberFormatException) {
+                        // Handle invalid input
+                    }
+                }
+            }) {
+                Text("Save Transaction")
+            }
+        }
+    }
+}
+@Composable
+fun MainScreen(window: Window, viewModel: TransactionViewModel) {
+    val navController = rememberNavController()
+    val bottomNavItems = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.Search,
+        BottomNavItem.Profile,
+        BottomNavItem.Settings,
+        BottomNavItem.Info
+    )
+
+    var showSheet by remember { mutableStateOf(false) }
+
+    // Collect transactions using collectAsStateWithLifecycle instead of observeAsState
+//    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle(initial = emptyList())
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+
+    Scaffold(
+        bottomBar = {
+            BottomNavBar(navController = navController, items = bottomNavItems) { selectedItem ->
+                if (selectedItem.route == BottomNavItem.Profile.route) {
+                    showSheet = true // Trigger bottom sheet
+                } else {
+                    navController.navigate(selectedItem.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showSheet = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+            }
+        }
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = BottomNavItem.Home.route,
+            modifier = Modifier.padding(padding)
+        ) {
+            composable(BottomNavItem.Home.route) {
+                TransactionListScreen(transactions)
+            }
+            composable(BottomNavItem.Search.route) {
+                ScreenContent("Search Screen", Color(0xFFFFF9C4))
+            }
+            composable(BottomNavItem.Settings.route) {
+                ScreenContent("Settings Screen", Color(0xFFFFCCBC))
+            }
+            composable(BottomNavItem.Info.route) {
+                SideEffect {
+                    WindowCompat.setDecorFitsSystemWindows(window, false)
+                    window.statusBarColor = android.graphics.Color.RED
+                    window.navigationBarColor = android.graphics.Color.RED
+                    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                    insetsController.isAppearanceLightStatusBars = false
+                    insetsController.isAppearanceLightNavigationBars = false
+                }
+                ScreenContent("Info Screen (Red System Bars)", Color.Red, contentColor = Color.White)
+            }
+        }
+
+        if (showSheet) {
+            AddTransactionBottomSheet(
+                onDismiss = { showSheet = false },
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@Composable
+fun TransactionListScreen(transactions: List<Transaction>) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Transaction History",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        if (transactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions yet.\nClick the + button to add one.",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyColumn {
+                items(transactions) { transaction ->
+                    TransactionItem(transaction)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+@Composable
+fun TransactionItem(transaction: Transaction) {
+    val amountColor = if (transaction.type == "Income") Color.Green else Color.Red
+    val amountPrefix = if (transaction.type == "Income") "+" else "-"
+    val date = LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = transaction.type,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+        }
+
+        Text(
+            text = "$amountPrefix$${transaction.amount}",
+            style = MaterialTheme.typography.titleMedium,
+            color = amountColor
+        )
+    }
+}
+
+@Composable
+fun ScreenContent(title: String, backgroundColor: Color, contentColor: Color = Color.Black) {
+    Surface(
+        modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
+        ) {
+            Text(text = title, color = contentColor)
+        }
+    }
+}
+
+class MainActivity : ComponentActivity() {
+    private lateinit var transactionViewModel: TransactionViewModel
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        // Initialize ViewModel
+        transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
+
+        setContent {
+            StatusBarTestTheme {
+                MainScreen(window, transactionViewModel)
+            }
+        }
+    }
+}
+
