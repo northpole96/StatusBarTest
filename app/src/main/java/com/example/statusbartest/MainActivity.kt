@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import android.app.DatePickerDialog
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,6 +48,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.example.statusbartest.TransactionViewModel.FilterType
+import java.time.temporal.TemporalAdjusters
 
 sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String) {
     object Home : BottomNavItem("home", Icons.Default.Home, "Home")
@@ -69,7 +72,7 @@ fun BottomNavBar(navController: NavController, items: List<BottomNavItem>,onItem
                 label = { Text(item.label) },
                 selected = currentDestination?.route == item.route,
                 onClick = {
-                  onItemClick(item)
+                    onItemClick(item)
                 })
         }
     }
@@ -240,6 +243,7 @@ fun AddTransactionBottomSheet(
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     val navController = rememberNavController()
@@ -252,11 +256,13 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     )
 
     var showSheet by remember { mutableStateOf(false) }
+    var filterDate by remember { mutableStateOf<LocalDate?>(null) }
+    var filterType by remember { mutableStateOf(TransactionViewModel.FilterType.ALL) }
+    val context = LocalContext.current
 
-    // Collect transactions using collectAsStateWithLifecycle instead of observeAsState
-//    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle(initial = emptyList())
+
+    // Collect transactions using collectAsState
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
-
 
     Scaffold(
         bottomBar = {
@@ -276,6 +282,18 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
             FloatingActionButton(onClick = { showSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
+        },
+        topBar = {
+            TopAppBar(title = { Text("Transactions") }, actions = {
+                FilterDropdown(
+                    context = context,
+                    onFilterSelected = { date, type ->
+                        filterDate = date
+                        filterType = type
+                        viewModel.setFilterDate(date)
+                        viewModel.setFilterType(type)
+                    })
+            })
         }
     ) { padding ->
         NavHost(
@@ -310,6 +328,100 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 onDismiss = { showSheet = false },
                 viewModel = viewModel
             )
+        }
+    }
+}
+@Composable
+fun FilterDropdown(
+    context: Context,
+    onFilterSelected: (LocalDate?, TransactionViewModel.FilterType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var selectedFilterType by remember { mutableStateOf(TransactionViewModel.FilterType.ALL) }
+    val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+
+
+    Column {
+        Button(onClick = { expanded = true }) {
+            Text(
+                text = when (selectedFilterType) {
+                    TransactionViewModel.FilterType.ALL -> "Filter: All"
+                    TransactionViewModel.FilterType.DAY -> "Filter: Day ${selectedDate?.format(formatter) ?: ""}"
+                    TransactionViewModel.FilterType.WEEK -> "Filter: Week ${
+                        selectedDate?.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                            ?.format(formatter)
+                    } - ${
+                        selectedDate?.with(TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY))
+                            ?.format(formatter)
+                    }"
+                    TransactionViewModel.FilterType.MONTH -> "Filter: Month ${selectedDate?.format(DateTimeFormatter.ofPattern("MMMM yyyy")) ?: ""}"
+                    else -> "Filter"
+                }
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(text = { Text("All") }, onClick = {
+                selectedDate = null
+                selectedFilterType = TransactionViewModel.FilterType.ALL
+                onFilterSelected(null, TransactionViewModel.FilterType.ALL)
+                expanded = false
+            })
+
+            DropdownMenuItem(text = { Text("Day") }, onClick = {
+                val datePickerDialog = DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        val date = LocalDate.of(year, month + 1, dayOfMonth)
+                        selectedDate = date
+                        selectedFilterType = TransactionViewModel.FilterType.DAY
+                        onFilterSelected(date, TransactionViewModel.FilterType.DAY)
+                        expanded = false
+                    },
+                    selectedDate?.year ?: LocalDate.now().year,
+                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
+                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
+                )
+                datePickerDialog.show()
+            })
+
+            DropdownMenuItem(text = { Text("Week") }, onClick = {
+                val datePickerDialog = DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        val date = LocalDate.of(year, month + 1, dayOfMonth)
+                        selectedDate = date
+                        selectedFilterType = TransactionViewModel.FilterType.WEEK;
+                        onFilterSelected(date, TransactionViewModel.FilterType.WEEK)
+                        expanded = false
+                    },
+                    selectedDate?.year ?: LocalDate.now().year,
+                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
+                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
+                )
+                datePickerDialog.show()
+            })
+
+            DropdownMenuItem(text = { Text("Month") }, onClick = {
+                val datePickerDialog = DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        val date = LocalDate.of(year, month + 1, dayOfMonth)
+                        selectedDate = date
+                        selectedFilterType = TransactionViewModel.FilterType.MONTH
+                        onFilterSelected(date, TransactionViewModel.FilterType.MONTH)
+                        expanded = false
+                    },
+                    selectedDate?.year ?: LocalDate.now().year,
+                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
+                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
+                )
+                datePickerDialog.show()
+            })
         }
     }
 }
@@ -412,4 +524,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
