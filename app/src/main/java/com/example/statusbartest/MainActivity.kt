@@ -8,7 +8,9 @@ import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,11 +18,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -44,6 +50,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.room.util.TableInfo
 import com.example.statusbartest.TransactionViewModel.FilterType
 import com.example.statusbartest.ui.theme.StatusBarTestTheme
 import java.time.DayOfWeek
@@ -275,11 +282,11 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 }
             }
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showSheet = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
-            }
-        },
+//        floatingActionButton = {
+//            FloatingActionButton(onClick = { showSheet = true }) {
+//                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+//            }
+//        },
         topBar = {
             TopAppBar(
                 title = { Text("Transactions") },
@@ -310,8 +317,10 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 CategoryFilterScreen(viewModel)
             }
             composable(BottomNavItem.Search.route) {
-                ScreenContent("Search Screen", Color(0xFFFFF9C4))
+//                ScreenContent("Search Screen", Color(0xFFFFF9C4))
+           SearchScreen()
             }
+
             composable(BottomNavItem.Settings.route) {
                 ScreenContent("Settings Screen", Color(0xFFFFCCBC))
             }
@@ -328,6 +337,15 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
         }
     }
 }
+
+//@Composable
+//fun SearchScreen() {
+//Column (modifier=Modifier.fillMaxSize().background(Color.White)){
+//
+//
+//
+//}
+//}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterDropdown(
@@ -335,35 +353,28 @@ fun FilterDropdown(
     navController: NavController
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedText by remember { mutableStateOf("All") }
+    var selectedItem by remember { mutableStateOf("All") }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        TextField(
-            modifier = Modifier.menuAnchor(),
-            value = selectedText,
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
-        )
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = if (selectedItem == "All")
+                    Icons.Outlined.ArrowDropDown
+                else
+                    Icons.Filled.ArrowDropDown,
+                contentDescription = "Filter menu"
+            )
+        }
 
-        ExposedDropdownMenu(
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            listOf(
-                "All",
-                "Day",
-                "Week",
-                "Month",
-                "Category"
-            ).forEach { item ->
+            listOf("All", "Day", "Week", "Month", "Category").forEach { item ->
                 DropdownMenuItem(
                     text = { Text(text = item) },
                     onClick = {
-                        selectedText = item
+                        selectedItem = item
                         expanded = false
                         when (item) {
                             "All" -> navController.navigate(BottomNavItem.Home.route)
@@ -637,58 +648,7 @@ fun MonthFilterScreen(viewModel: TransactionViewModel) {
         }
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FilterDropdown(
-    context: Context,
-    onFilterSelected: (FilterType) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var selectedText by remember { mutableStateOf("All") }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        TextField(
-            value = selectedText,
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor()
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            listOf(
-                "All",
-                "Day",
-                "Week",
-                "Month",
-                "Income",
-                "Expense"
-
-            ).forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(text = item) },
-                    onClick = {
-                        selectedText = item
-                        expanded = false
-                        when (item) {
-                            "All" -> onFilterSelected(FilterType.ALL)
-                            "Day" -> onFilterSelected(FilterType.DAY)
-                            "Week" -> onFilterSelected(FilterType.WEEK)
-                            "Month" -> onFilterSelected(FilterType.MONTH)
-
-                        }
-                    }
-                )
-            }
-        }
-    }
-}
 
 
 
@@ -842,7 +802,6 @@ fun SpentSummary(
     viewModel: TransactionViewModel
 ) {
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
-    var expanded by remember { mutableStateOf(false) }
     val periods = listOf("Today", "This Week", "This Month", "This Year", "All Time")
     var currentPeriod by remember { mutableStateOf(periods[0]) }
 
@@ -856,56 +815,60 @@ fun SpentSummary(
             .padding(16.dp)
     ) {
         // Period Dropdown
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            TextField(
-                value = currentPeriod,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Spending Period") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
+        var expanded by remember { mutableStateOf(false) }
+        Row (Modifier.fillMaxWidth(),verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.Center) {
+            Text("Spent")
+            Box() {
 
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                periods.forEach { period ->
-                    DropdownMenuItem(
-                        text = { Text(period) },
-                        onClick = {
-                            currentPeriod = period
-                            expanded = false
-                        }
+
+                TextButton(
+                    onClick = { expanded = true },
+//                modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = currentPeriod,
+                        style = MaterialTheme.typography.titleMedium
                     )
+//                Spacer(Modifier.width(8.dp))
+//                Icon(
+//                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
+//                    else Icons.Filled.KeyboardArrowDown,
+//                    contentDescription = "Change Period"
+//                )
+
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    periods.forEach { period ->
+                        DropdownMenuItem(
+                            text = { Text(period) },
+                            onClick = {
+                                currentPeriod = period
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
-
         // Total Spent Display
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Total Spent",
-                style = MaterialTheme.typography.titleMedium
-            )
+//            Text(
+//                text = "Total Spent",
+//                style = MaterialTheme.typography.titleMedium
+//            )
             Text(
                 text = "${"$%.2f".format(totalSpent)}",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.displayLarge,
+                color = Color.Black
             )
         }
     }
