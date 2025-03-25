@@ -1,54 +1,55 @@
 package com.example.statusbartest
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+
+
 import android.app.DatePickerDialog
 import android.content.Context
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.example.statusbartest.ui.theme.StatusBarTestTheme
-import android.view.Window
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.filled.Add
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
-
-
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import androidx.navigation.compose.rememberNavController
 import com.example.statusbartest.TransactionViewModel.FilterType
+import com.example.statusbartest.ui.theme.StatusBarTestTheme
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String) {
@@ -256,19 +257,15 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     )
 
     var showSheet by remember { mutableStateOf(false) }
-    var filterDate by remember { mutableStateOf<LocalDate?>(null) }
-    var filterType by remember { mutableStateOf(TransactionViewModel.FilterType.ALL) }
-    val context = LocalContext.current
-
-
-    // Collect transactions using collectAsState
-    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
 
     Scaffold(
         bottomBar = {
-            BottomNavBar(navController = navController, items = bottomNavItems) { selectedItem ->
+            BottomNavBar(
+                navController = navController,
+                items = bottomNavItems
+            ) { selectedItem ->
                 if (selectedItem.route == BottomNavItem.Profile.route) {
-                    showSheet = true // Trigger bottom sheet
+                    showSheet = true
                 } else {
                     navController.navigate(selectedItem.route) {
                         popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -284,16 +281,12 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
             }
         },
         topBar = {
-            TopAppBar(title = { Text("Transactions") }, actions = {
-                FilterDropdown(
-                    context = context,
-                    onFilterSelected = { date, type ->
-                        filterDate = date
-                        filterType = type
-                        viewModel.setFilterDate(date)
-                        viewModel.setFilterType(type)
-                    })
-            })
+            TopAppBar(
+                title = { Text("Transactions") },
+                actions = {
+                    FilterDropdown(LocalContext.current, navController)
+                }
+            )
         }
     ) { padding ->
         NavHost(
@@ -302,7 +295,19 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
             modifier = Modifier.padding(padding)
         ) {
             composable(BottomNavItem.Home.route) {
-                TransactionListScreen(transactions)
+                TransactionListScreen(viewModel)
+            }
+            composable("day_filter") {
+                DayFilterScreen(viewModel)
+            }
+            composable("week_filter") {
+                WeekFilterScreen(viewModel)
+            }
+            composable("month_filter") {
+                MonthFilterScreen(viewModel)
+            }
+            composable("category_filter") {
+                CategoryFilterScreen(viewModel)
             }
             composable(BottomNavItem.Search.route) {
                 ScreenContent("Search Screen", Color(0xFFFFF9C4))
@@ -311,15 +316,7 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 ScreenContent("Settings Screen", Color(0xFFFFCCBC))
             }
             composable(BottomNavItem.Info.route) {
-                SideEffect {
-                    WindowCompat.setDecorFitsSystemWindows(window, false)
-                    window.statusBarColor = android.graphics.Color.RED
-                    window.navigationBarColor = android.graphics.Color.RED
-                    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-                    insetsController.isAppearanceLightStatusBars = false
-                    insetsController.isAppearanceLightNavigationBars = false
-                }
-                ScreenContent("Info Screen (Red System Bars)", Color.Red, contentColor = Color.White)
+                ScreenContent("Info Screen", Color(0xFFFFAB91))
             }
         }
 
@@ -331,115 +328,412 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterDropdown(
     context: Context,
-    onFilterSelected: (LocalDate?, TransactionViewModel.FilterType) -> Unit
+    navController: NavController
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedFilterType by remember { mutableStateOf(TransactionViewModel.FilterType.ALL) }
-    val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    var selectedText by remember { mutableStateOf("All") }
 
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        TextField(
+            modifier = Modifier.menuAnchor(),
+            value = selectedText,
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+        )
 
-    Column {
-        Button(onClick = { expanded = true }) {
-            Text(
-                text = when (selectedFilterType) {
-                    TransactionViewModel.FilterType.ALL -> "Filter: All"
-                    TransactionViewModel.FilterType.DAY -> "Filter: Day ${selectedDate?.format(formatter) ?: ""}"
-                    TransactionViewModel.FilterType.WEEK -> "Filter: Week ${
-                        selectedDate?.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-                            ?.format(formatter)
-                    } - ${
-                        selectedDate?.with(TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY))
-                            ?.format(formatter)
-                    }"
-                    TransactionViewModel.FilterType.MONTH -> "Filter: Month ${selectedDate?.format(DateTimeFormatter.ofPattern("MMMM yyyy")) ?: ""}"
-                    else -> "Filter"
-                }
-            )
-        }
-
-        DropdownMenu(
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            DropdownMenuItem(text = { Text("All") }, onClick = {
-                selectedDate = null
-                selectedFilterType = TransactionViewModel.FilterType.ALL
-                onFilterSelected(null, TransactionViewModel.FilterType.ALL)
-                expanded = false
-            })
-
-            DropdownMenuItem(text = { Text("Day") }, onClick = {
-                val datePickerDialog = DatePickerDialog(
-                    context,
-                    { _, year, month, dayOfMonth ->
-                        val date = LocalDate.of(year, month + 1, dayOfMonth)
-                        selectedDate = date
-                        selectedFilterType = TransactionViewModel.FilterType.DAY
-                        onFilterSelected(date, TransactionViewModel.FilterType.DAY)
+            listOf(
+                "All",
+                "Day",
+                "Week",
+                "Month",
+                "Category"
+            ).forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(text = item) },
+                    onClick = {
+                        selectedText = item
                         expanded = false
-                    },
-                    selectedDate?.year ?: LocalDate.now().year,
-                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
-                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
+                        when (item) {
+                            "All" -> navController.navigate(BottomNavItem.Home.route)
+                            "Day" -> navController.navigate("day_filter")
+                            "Week" -> navController.navigate("week_filter")
+                            "Month" -> navController.navigate("month_filter")
+                            "Category" -> navController.navigate("category_filter")
+                        }
+                    }
                 )
-                datePickerDialog.show()
-            })
-
-            DropdownMenuItem(text = { Text("Week") }, onClick = {
-                val datePickerDialog = DatePickerDialog(
-                    context,
-                    { _, year, month, dayOfMonth ->
-                        val date = LocalDate.of(year, month + 1, dayOfMonth)
-                        selectedDate = date
-                        selectedFilterType = TransactionViewModel.FilterType.WEEK;
-                        onFilterSelected(date, TransactionViewModel.FilterType.WEEK)
-                        expanded = false
-                    },
-                    selectedDate?.year ?: LocalDate.now().year,
-                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
-                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
-                )
-                datePickerDialog.show()
-            })
-
-            DropdownMenuItem(text = { Text("Month") }, onClick = {
-                val datePickerDialog = DatePickerDialog(
-                    context,
-                    { _, year, month, dayOfMonth ->
-                        val date = LocalDate.of(year, month + 1, dayOfMonth)
-                        selectedDate = date
-                        selectedFilterType = TransactionViewModel.FilterType.MONTH
-                        onFilterSelected(date, TransactionViewModel.FilterType.MONTH)
-                        expanded = false
-                    },
-                    selectedDate?.year ?: LocalDate.now().year,
-                    selectedDate?.monthValue?.minus(1) ?: LocalDate.now().monthValue - 1,
-                    selectedDate?.dayOfMonth ?: LocalDate.now().dayOfMonth
-                )
-                datePickerDialog.show()
-            })
+            }
         }
     }
 }
 
 @Composable
-fun TransactionListScreen(transactions: List<Transaction>) {
+fun CategoryFilterScreen(viewModel: TransactionViewModel) {
+    var selectedCategory by remember { mutableStateOf("All") }
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+    val currentDay = LocalDate.now()
+    val currentMonth = YearMonth.now()
+    val currentWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    val filteredTransactions = viewModel.filterTransactions(
+        transactions,
+        FilterType.CATEGORY,
+        currentDay,
+        currentMonth,
+        currentWeekStart,
+        selectedCategory
+    )
+
+    Column {
+        // Segmented Button for Category
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            listOf("All", "Income", "Expense").forEachIndexed { index, category ->
+                SegmentedButton(
+                    selected = selectedCategory == category,
+                    onClick = {
+                        selectedCategory = category
+                        viewModel.setSelectedCategory(category)
+                    },
+                    label = {
+                        Text(category)
+                    },
+                    shape = RoundedCornerShape(50)
+                )
+            }
+        }
+
+        // Transactions List
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions in this category",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn {
+                items(filteredTransactions) { transaction ->
+                    TransactionItem(transaction)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun DayFilterScreen(viewModel: TransactionViewModel) {
+    val currentDay by viewModel.currentDate.collectAsState(initial = LocalDate.now())
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+    val filteredTransactions = viewModel.filterTransactions(
+        transactions,
+        FilterType.DAY,
+        currentDay,
+        YearMonth.from(currentDay),
+        currentDay.minusDays(currentDay.dayOfWeek.value.toLong() - 1)
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // Navigation Row for Day
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { viewModel.previousDay() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Previous Day")
+            }
+
+            Text(
+                text = currentDay.format(DateTimeFormatter.ofPattern("MMMM dd, yyyy")),
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(onClick = { viewModel.nextDay() }) {
+                Icon(Icons.Default.ArrowForward, contentDescription = "Next Day")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Transactions List
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions for this day.",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn {
+                items(filteredTransactions) { transaction ->
+                    TransactionItem(transaction)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeekFilterScreen(viewModel: TransactionViewModel) {
+    val currentWeekStart by viewModel.currentWeekStart.collectAsState(initial = LocalDate.now().minusDays(LocalDate.now().dayOfWeek.value.toLong() - 1))
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+    val filteredTransactions = viewModel.filterTransactions(
+        transactions,
+        FilterType.WEEK,
+        LocalDate.now(),
+        YearMonth.from(currentWeekStart),
+        currentWeekStart
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Navigation Row for Week
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { viewModel.previousWeek() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Previous Week")
+            }
+
+            Text(
+                text = "Week of ${currentWeekStart.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))}",
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(onClick = { viewModel.nextWeek() }) {
+                Icon(Icons.Default.ArrowForward, contentDescription = "Next Week")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Transactions List
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions for this week.",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn {
+                items(filteredTransactions) { transaction ->
+                    TransactionItem(transaction)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthFilterScreen(viewModel: TransactionViewModel) {
+    val currentMonth by viewModel.currentMonth.collectAsState(initial = YearMonth.now())
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+    val filteredTransactions = viewModel.filterTransactions(
+        transactions,
+        FilterType.MONTH,
+        currentMonth.atDay(1),
+        currentMonth,
+        currentMonth.atDay(1)
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Navigation Row for Month
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { viewModel.previousMonth() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Previous Month")
+            }
+
+            Text(
+                text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(onClick = { viewModel.nextMonth() }) {
+                Icon(Icons.Default.ArrowForward, contentDescription = "Next Month")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Transactions List
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions for this month.",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn {
+                items(filteredTransactions) { transaction ->
+                    TransactionItem(transaction)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterDropdown(
+    context: Context,
+    onFilterSelected: (FilterType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedText by remember { mutableStateOf("All") }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        TextField(
+            value = selectedText,
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            listOf(
+                "All",
+                "Day",
+                "Week",
+                "Month",
+                "Income",
+                "Expense"
+
+            ).forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(text = item) },
+                    onClick = {
+                        selectedText = item
+                        expanded = false
+                        when (item) {
+                            "All" -> onFilterSelected(FilterType.ALL)
+                            "Day" -> onFilterSelected(FilterType.DAY)
+                            "Week" -> onFilterSelected(FilterType.WEEK)
+                            "Month" -> onFilterSelected(FilterType.MONTH)
+
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+fun TransactionListScreen(
+    viewModel: TransactionViewModel
+) {
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+    val currentDay = LocalDate.now()
+    val currentMonth = YearMonth.now()
+    val currentWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    val selectedCategory by viewModel.selectedCategory.collectAsState(initial = "All")
+
+    val filteredTransactions = viewModel.filterTransactions(
+        transactions,
+        FilterType.ALL,
+        currentDay,
+        currentMonth,
+        currentWeekStart,
+        selectedCategory
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Spending Summary
+        SpentSummary(viewModel)
+
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Transactions Title
         Text(
             text = "Transaction History",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        if (transactions.isEmpty()) {
+        // Transactions List
+        if (filteredTransactions.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -448,12 +742,12 @@ fun TransactionListScreen(transactions: List<Transaction>) {
                     text = "No transactions yet.\nClick the + button to add one.",
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             LazyColumn {
-                items(transactions) { transaction ->
+                items(filteredTransactions) { transaction ->
                     TransactionItem(transaction)
                     Divider()
                 }
@@ -503,6 +797,116 @@ fun ScreenContent(title: String, backgroundColor: Color, contentColor: Color = C
             modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
         ) {
             Text(text = title, color = contentColor)
+        }
+    }
+}
+
+@Composable
+fun CategorySegmentedButton(
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit
+) {
+    var selectedIndex by remember {
+        mutableStateOf(
+            when(selectedCategory) {
+                "All" -> 0
+                "Income" -> 1
+                "Expense" -> 2
+                else -> 0
+            }
+        )
+    }
+    val options = listOf("All", "Income", "Expense")
+
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        options.forEachIndexed { index, category ->
+            SegmentedButton(
+                selected = selectedIndex == index,
+                onClick = {
+                    selectedIndex = index
+                    onCategorySelected(category)
+                },
+                icon = {}, // Optional: Add icons if needed
+                label = { Text(category) },
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SpentSummary(
+    viewModel: TransactionViewModel
+) {
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+    var expanded by remember { mutableStateOf(false) }
+    val periods = listOf("Today", "This Week", "This Month", "This Year", "All Time")
+    var currentPeriod by remember { mutableStateOf(periods[0]) }
+
+    val totalSpent = remember(transactions, currentPeriod) {
+        viewModel.calculateTotalSpent(transactions, currentPeriod)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        // Period Dropdown
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            TextField(
+                value = currentPeriod,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Spending Period") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                periods.forEach { period ->
+                    DropdownMenuItem(
+                        text = { Text(period) },
+                        onClick = {
+                            currentPeriod = period
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Total Spent Display
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Total Spent",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "${"$%.2f".format(totalSpent)}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
