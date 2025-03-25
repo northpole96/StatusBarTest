@@ -8,6 +8,7 @@ import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.room.util.TableInfo
 import com.example.statusbartest.TransactionViewModel.FilterType
 import com.example.statusbartest.ui.theme.StatusBarTestTheme
 import java.time.DayOfWeek
@@ -310,8 +312,10 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 CategoryFilterScreen(viewModel)
             }
             composable(BottomNavItem.Search.route) {
-                ScreenContent("Search Screen", Color(0xFFFFF9C4))
+//                ScreenContent("Search Screen", Color(0xFFFFF9C4))
+           SearchScreen()
             }
+
             composable(BottomNavItem.Settings.route) {
                 ScreenContent("Settings Screen", Color(0xFFFFCCBC))
             }
@@ -328,6 +332,15 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
         }
     }
 }
+
+//@Composable
+//fun SearchScreen() {
+//Column (modifier=Modifier.fillMaxSize().background(Color.White)){
+//
+//
+//
+//}
+//}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterDropdown(
