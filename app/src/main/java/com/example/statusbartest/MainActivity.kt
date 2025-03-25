@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -359,9 +362,9 @@ fun FilterDropdown(
         IconButton(onClick = { expanded = true }) {
             Icon(
                 imageVector = if (selectedItem == "All")
-                    Icons.Outlined.ArrowDropDown
+                    Icons.Outlined.Circle
                 else
-                    Icons.Filled.ArrowDropDown,
+                    Icons.Filled.Contrast,
                 contentDescription = "Filter menu"
             )
         }
