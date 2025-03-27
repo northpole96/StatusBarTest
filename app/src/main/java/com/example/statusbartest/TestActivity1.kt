@@ -2,6 +2,7 @@ package com.example.statusbartest
 
 import android.os.Bundle
 import android.widget.Button
+import androidx.compose.foundation.layout.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -72,22 +74,24 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
     )
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview2() {
-    StatusBarTestTheme {
-        Column(Modifier
-            .fillMaxSize()
-            .padding(12.dp)) {
-            Spacer(modifier = Modifier.weight(1f))
-            KeyboardTopBlock()
-            Spacer(modifier=Modifier.height(12.dp))
-
-            CustomDigitKeyboard2()
-        }
-
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun GreetingPreview2() {
+//    StatusBarTestTheme {
+//        Column(Modifier
+//            .fillMaxSize()
+//            .padding(12.dp)) {
+//            TransactionTypeSelectionBar()
+//            Spacer(modifier = Modifier.weight(1f))
+//            AmountBlock()
+//            KeyboardTopBlock()
+//            Spacer(modifier=Modifier.height(12.dp))
+//
+//            CustomDigitKeyboard2()
+//        }
+//
+//    }
+//}
 
 @Composable
 fun DigitKeyboard() {
@@ -163,12 +167,53 @@ fun CustomDigitKeyboard2() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview2() {
+    StatusBarTestTheme {
+        Column(
+            Modifier
+                .fillMaxSize() // The parent Column fills the entire screen
+                .padding(12.dp)
+        ) {
+            TransactionTypeSelectionBar()
+            Spacer(modifier = Modifier.weight(1f))
+           AmountBlock()
+            Spacer(modifier = Modifier.weight(1f))
+            KeyboardTopBlock()
+            Spacer(modifier = Modifier.height(12.dp))
+            CustomDigitKeyboard2()
+        }
+    }
+}
+
+@Composable
+fun AmountBlock() {
+    Column ( // Example visual for the AmountBlock
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Yellow.copy(alpha = 0.3f)) // Just for visualization
+            .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("0", fontSize = 120.sp)
+    }
+}
+
+@Composable
+fun TransactionTypeSelectionBar(){
+    // Your implementation
+    Text("Transaction Type Selection", modifier = Modifier.padding(bottom = 8.dp))
+}
+
 @Composable
 fun KeyboardTopBlock() {
+    // Your implementation
     val colorBorder= Color.Black.copy(alpha = 0.2f)
     val borderWidth=1.5.dp
-    Row(Modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         Row(
             modifier = Modifier
                 .padding(end = 12.dp)
@@ -178,7 +223,7 @@ fun KeyboardTopBlock() {
         ) {
             Icon(
                 imageVector = Icons.Rounded.CalendarMonth,
-                contentDescription = "Favorite",
+                contentDescription = "Calendar",
                 tint = Color.Black
             )
 
@@ -193,12 +238,11 @@ fun KeyboardTopBlock() {
         ) {
             Icon(
                 imageVector = Icons.Default.Contrast,
-                contentDescription = "Favorite",
+                contentDescription = "Category",
                 tint = Color.Black
             )
             Spacer(Modifier.width(6.dp))
             Text("Category", fontSize = 18.sp, fontWeight = FontWeight.Medium)
         }
     }
-
 }
