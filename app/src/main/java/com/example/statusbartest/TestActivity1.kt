@@ -18,6 +18,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -238,12 +239,42 @@ fun AmountBlock() {
     }
 }
 
-@Composable
-fun TransactionTypeSelectionBar(){
-    // Your implementation
-    Text("Transaction Type Selection", modifier = Modifier.padding(bottom = 8.dp))
-}
 
+
+@Composable
+fun TransactionTypeSelectionBar() {
+    Row(Modifier.fillMaxWidth(),Arrangement.Center) {
+        val interactionSource = remember { MutableInteractionSource() } // Prevent ripple
+
+        var isExpense by remember { mutableStateOf(true) }
+        Row(
+            Modifier.border(1.dp, Color.LightGray.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
+                .padding(4.dp)
+        ) {
+            Text(
+                "Expense",
+                Modifier.background(
+                    if (isExpense) Color.LightGray.copy(alpha = 0.4f) else Color.White,
+                    RoundedCornerShape(100.dp)
+                ).padding(horizontal = 12.dp, vertical = 4.dp)
+                    .clickable(interactionSource, indication = null) { isExpense = true },
+                fontWeight = FontWeight.Medium,
+                color = if (isExpense) Color.Black else Color.Gray
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Income",
+                Modifier.background(
+                    if (isExpense) Color.White else Color.LightGray.copy(alpha = 0.4f),
+                    RoundedCornerShape(100.dp)
+                ).padding(horizontal = 12.dp, vertical = 4.dp)
+                    .clickable(interactionSource, indication = null) { isExpense = false },
+                fontWeight = FontWeight.Medium,
+                color = if (isExpense) Color.Gray else Color.Black
+            )
+        }
+    }
+}
 @Composable
 fun KeyboardTopBlock() {
     // Your implementation
