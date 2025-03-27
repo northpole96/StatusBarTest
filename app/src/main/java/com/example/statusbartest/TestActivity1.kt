@@ -5,19 +5,28 @@ import android.widget.Button
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -59,8 +68,11 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview2() {
     StatusBarTestTheme {
-//        Greeting2("Android")
-        CustomDigitKeyboard2()
+        Column (Modifier.fillMaxSize().padding(12.dp)){
+            Spacer(modifier=Modifier.weight(1f))
+            CustomDigitKeyboard2()
+        }
+
     }
 }
 
@@ -71,12 +83,13 @@ fun DigitKeyboard() {
 
 @Composable
 fun CustomDigitKeyboard2() {
+    val colorButton= Color.LightGray.copy(alpha = 0.2f)
     val buttons = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
         listOf("7", "8", "9"),
         listOf(".", "0", "Del"),
-        listOf("Clear")
+//        listOf("Clear")
     )
 
     Column {
@@ -86,19 +99,35 @@ fun CustomDigitKeyboard2() {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 row.forEach { label ->
+                    if(label != "Del"){
                     Button(
                         onClick = {
 
                         },colors= ButtonDefaults.buttonColors(
-                            containerColor = Color.Black.copy(alpha = 0.2f),
+                            containerColor = colorButton,
                             contentColor = Color.White
                         ) ,
-                        shape = RoundedCornerShape(12.dp), modifier = Modifier.padding(8.dp).weight(1f).height(80.dp)
+                        shape = RoundedCornerShape(12.dp), modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).weight(1f).height(60.dp)
                     ) {
-                        Text(label,fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                        Text(label,fontSize = MaterialTheme.typography.headlineLarge.fontSize, color = Color.Black)
+                    }
+                    }
+                    else{
+
+                        IconButton(
+                            onClick = { /* Handle click */ },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).weight(1f).height(60.dp).background(Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(12.dp)))
+                         {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Favorite",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
