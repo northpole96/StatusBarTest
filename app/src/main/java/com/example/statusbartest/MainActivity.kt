@@ -720,7 +720,7 @@ fun TransactionListScreen(
 }
 @Composable
 fun TransactionItem(transaction: Transaction) {
-    val amountColor = if (transaction.type == "Income") Color.Green else Color.Red
+    val amountColor = if (transaction.type == "Income") Color.Green else Color.Black
     val amountPrefix = if (transaction.type == "Income") "+" else "-"
     val date = LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
 
