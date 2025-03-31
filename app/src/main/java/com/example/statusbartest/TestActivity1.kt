@@ -121,7 +121,100 @@ fun Greeting2(name: String, modifier: Modifier = Modifier) {
 fun DigitKeyboard() {
 
 }
+@Composable
+fun CustomDigitKeyboard2(
+    input: String,
+    onInputChange: (String) -> Unit,
+    onSave: () -> Unit // New callback parameter for save action
+) {
+    val colorButton = Color.LightGray.copy(alpha = 0.2f)
+    val buttons = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf(".", "0", "Save"),
+//        listOf("Clear")
+    )
 
+    Column(
+//        Modifier.border(0.dp, Color.Black, RoundedCornerShape(12.dp)),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        buttons.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                row.forEach { label ->
+                    if (label != "Save") {
+                        Button(
+                            onClick = {
+                                when (label) {
+                                    in "0".."9" -> {
+                                        val updated = input + label
+                                        if (isValidInput(updated)) {
+                                            onInputChange(updated)
+                                        }
+                                    }
+
+                                    "." -> {
+                                        if (!input.contains(".")) {
+                                            onInputChange(input + ".")
+                                        }
+                                    }
+
+                                    "Del" -> {
+                                        if (input.isNotEmpty()) {
+                                            onInputChange(input.dropLast(1))
+                                        }
+                                    }
+
+                                    "Clear" -> {
+                                        onInputChange("")
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorButton,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 0.dp, vertical = 0.dp)
+                                .weight(1f)
+                                .height(60.dp)
+                        ) {
+                            Text(
+                                label,
+                                fontSize = MaterialTheme.typography.headlineLarge.fontSize,
+                                color = Color.Black
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { onSave() }, // Use the onSave callback here
+                            modifier = Modifier
+                                .padding(horizontal = 0.dp, vertical = 0.dp)
+                                .weight(1f)
+                                .height(60.dp)
+                                .background(
+                                    Color.Black.copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                        )
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Favorite",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable

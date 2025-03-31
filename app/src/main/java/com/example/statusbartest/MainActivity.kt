@@ -10,6 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
@@ -46,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -186,6 +190,52 @@ fun CustomDigitKeyboard(
     }
 }
 
+
+@Composable
+fun TransactionTypeSelectionBarWithState(
+    isExpense: Boolean,
+    onTransactionTypeChange: (Boolean) -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), Arrangement.Center) {
+        val interactionSource = remember { MutableInteractionSource() } // Prevent ripple
+
+        Row(
+            Modifier.border(1.dp, Color.LightGray.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
+                .padding(4.dp)
+        ) {
+            Text(
+                "Expense",
+                Modifier
+                    .background(
+                        if (isExpense) Color.LightGray.copy(alpha = 0.4f) else Color.White,
+                        RoundedCornerShape(100.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .clickable(interactionSource, indication = null) {
+                        onTransactionTypeChange(true)
+                    },
+                fontWeight = FontWeight.Medium,
+                color = if (isExpense) Color.Black else Color.Gray
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Income",
+                Modifier
+                    .background(
+                        if (isExpense) Color.White else Color.LightGray.copy(alpha = 0.4f),
+                        RoundedCornerShape(100.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .clickable(interactionSource, indication = null) {
+                        onTransactionTypeChange(false)
+                    },
+                fontWeight = FontWeight.Medium,
+                color = if (isExpense) Color.Gray else Color.Black
+            )
+        }
+    }
+}
+
 fun isValidInput(input: String): Boolean {
     if (input.count { it == '.' } > 1) return false
     val parts = input.split(".")
@@ -253,15 +303,15 @@ fun AddTransactionBottomSheet(
                     }
                 }) {
                     Icon(
-                            imageVector = Icons.Rounded.Backspace,
-                    contentDescription = "Backspace",
+                        imageVector = Icons.Rounded.Backspace,
+                        contentDescription = "Backspace",
                     )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
 //            CustomDigitKeyboard(input = input, onInputChange = { input = it })
-            CustomDigitKeyboard(
+            CustomDigitKeyboard2(
                 input = input,
                 onInputChange = { input = it },
                 onSave = saveTransaction // Pass the save function to the keyboard
@@ -287,28 +337,13 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction Type Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text("Type: ")
-                Spacer(modifier = Modifier.width(8.dp))
-
-                val options = listOf("Expense", "Income")
-                options.forEach { option ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    ) {
-                        RadioButton(
-                            selected = transactionType == option,
-                            onClick = { transactionType = option }
-                        )
-                        Text(option)
-                    }
+            // Modified Transaction Type Toggle using TransactionTypeSelectionBar
+            TransactionTypeSelectionBarWithState(
+                isExpense = transactionType == "Expense",
+                onTransactionTypeChange = { isExpense ->
+                    transactionType = if (isExpense) "Expense" else "Income"
                 }
-            }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
