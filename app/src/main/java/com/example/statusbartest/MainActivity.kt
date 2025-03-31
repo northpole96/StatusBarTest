@@ -4,6 +4,7 @@ package com.example.statusbartest
 import android.app.DatePickerDialog
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Home
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.rounded.Backspace
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -89,54 +92,93 @@ fun BottomNavBar(navController: NavController, items: List<BottomNavItem>,onItem
     }
 }
 @Composable
-fun CustomDigitKeyboard(input: String, onInputChange: (String) -> Unit) {
+fun CustomDigitKeyboard(
+    input: String,
+    onInputChange: (String) -> Unit,
+    onSave: () -> Unit // New callback parameter for save action
+) {
+    val colorButton = Color.LightGray.copy(alpha = 0.2f)
     val buttons = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
         listOf("7", "8", "9"),
-        listOf(".", "0", "Del"),
-        listOf("Clear")
+        listOf(".", "0", "Save"),
+//        listOf("Clear")
     )
 
-    Column {
+    Column(
+//        Modifier.border(0.dp, Color.Black, RoundedCornerShape(12.dp)),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         buttons.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 row.forEach { label ->
-                    Button(
-                        onClick = {
-                            when (label) {
-                                in "0".."9" -> {
-                                    val updated = input + label
-                                    if (isValidInput(updated)) {
-                                        onInputChange(updated)
+                    if (label != "Save") {
+                        Button(
+                            onClick = {
+                                when (label) {
+                                    in "0".."9" -> {
+                                        val updated = input + label
+                                        if (isValidInput(updated)) {
+                                            onInputChange(updated)
+                                        }
+                                    }
+
+                                    "." -> {
+                                        if (!input.contains(".")) {
+                                            onInputChange(input + ".")
+                                        }
+                                    }
+
+                                    "Del" -> {
+                                        if (input.isNotEmpty()) {
+                                            onInputChange(input.dropLast(1))
+                                        }
+                                    }
+
+                                    "Clear" -> {
+                                        onInputChange("")
                                     }
                                 }
-
-                                "." -> {
-                                    if (!input.contains(".")) {
-                                        onInputChange(input + ".")
-                                    }
-                                }
-
-                                "Del" -> {
-                                    if (input.isNotEmpty()) {
-                                        onInputChange(input.dropLast(1))
-                                    }
-                                }
-
-                                "Clear" -> {
-                                    onInputChange("")
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .weight(1f)
-                    ) {
-                        Text(label)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorButton,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 0.dp, vertical = 0.dp)
+                                .weight(1f)
+                                .height(60.dp)
+                        ) {
+                            Text(
+                                label,
+                                fontSize = MaterialTheme.typography.headlineLarge.fontSize,
+                                color = Color.Black
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { onSave() }, // Use the onSave callback here
+                            modifier = Modifier
+                                .padding(horizontal = 0.dp, vertical = 0.dp)
+                                .weight(1f)
+                                .height(60.dp)
+                                .background(
+                                    Color.Black.copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                        )
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Favorite",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -162,6 +204,23 @@ fun AddTransactionBottomSheet(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val context = LocalContext.current
 
+    // Function to save the transaction
+    val saveTransaction = {
+        if (input.isNotEmpty()) {
+            try {
+                // Save transaction to database
+                viewModel.insert(
+                    amount = input.toDouble(),
+                    type = transactionType,
+                    date = selectedDate
+                )
+                onDismiss()
+            } catch (e: NumberFormatException) {
+                // Handle invalid input
+            }
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -178,16 +237,35 @@ fun AddTransactionBottomSheet(
             Text("Add Transaction", style = MaterialTheme.typography.headlineMedium)
 
             Spacer(modifier = Modifier.height(16.dp))
+            Row (verticalAlignment = Alignment.CenterVertically){
+                Spacer(Modifier.weight(1f))
 
-            Text(
-                text = "$input",
-                style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.padding(8.dp)
-            )
-
+                Text(
+                    text = "$input",
+                    style = MaterialTheme.typography.displaySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = {
+                    if (input.isNotEmpty()) {
+                        input=input.dropLast(1)
+                        Log.d("input",input)
+                    }
+                }) {
+                    Icon(
+                            imageVector = Icons.Rounded.Backspace,
+                    contentDescription = "Backspace",
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
-            CustomDigitKeyboard(input = input, onInputChange = { input = it })
+//            CustomDigitKeyboard(input = input, onInputChange = { input = it })
+            CustomDigitKeyboard(
+                input = input,
+                onInputChange = { input = it },
+                onSave = saveTransaction // Pass the save function to the keyboard
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -234,21 +312,7 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = {
-                if (input.isNotEmpty()) {
-                    try {
-                        // Save transaction to database
-                        viewModel.insert(
-                            amount = input.toDouble(),
-                            type = transactionType,
-                            date = selectedDate
-                        )
-                        onDismiss()
-                    } catch (e: NumberFormatException) {
-                        // Handle invalid input
-                    }
-                }
-            }) {
+            Button(onClick = saveTransaction) {
                 Text("Save Transaction")
             }
         }
@@ -413,7 +477,9 @@ fun CategoryFilterScreen(viewModel: TransactionViewModel) {
     Column {
         // Segmented Button for Category
         SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
             listOf("All", "Income", "Expense").forEachIndexed { index, category ->
                 SegmentedButton(
@@ -782,7 +848,9 @@ fun CategorySegmentedButton(
     val options = listOf("All", "Income", "Expense")
 
     SingleChoiceSegmentedButtonRow(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         options.forEachIndexed { index, category ->
             SegmentedButton(

@@ -12,6 +12,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -121,74 +122,7 @@ fun DigitKeyboard() {
 
 }
 
-@Composable
-fun CustomDigitKeyboard2() {
-    val colorButton = Color.LightGray.copy(alpha = 0.2f)
-    val buttons = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf(".", "0", "Del"),
-//        listOf("Clear")
-    )
 
-    Column(
-//        Modifier.border(0.dp, Color.Black, RoundedCornerShape(12.dp)),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        buttons.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                row.forEach { label ->
-                    if (label != "Del") {
-                        Button(
-                            onClick = {
-
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colorButton,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .padding(horizontal = 0.dp, vertical = 0.dp)
-                                .weight(1f)
-                                .height(60.dp)
-                        ) {
-                            Text(
-                                label,
-                                fontSize = MaterialTheme.typography.headlineLarge.fontSize,
-                                color = Color.Black
-                            )
-                        }
-                    } else {
-
-                        IconButton(
-                            onClick = { /* Handle click */ },
-                            modifier = Modifier
-                                .padding(horizontal = 0.dp, vertical = 0.dp)
-                                .weight(1f)
-                                .height(60.dp)
-                                .background(
-                                    Color.Black.copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                        )
-                        {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Favorite",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 @Preview(showBackground = true)
 @Composable
 fun AnimationPreview(){
@@ -200,7 +134,6 @@ fun AnimationPreview(){
 //            CrossfadeElementsDemo()
             Spacer(Modifier.weight(1f))
 //        AnimatedTabLayout()
-        CrossfadeTabLayout()
         }
     }
 }
@@ -222,7 +155,7 @@ fun GreetingPreview2() {
             Spacer(modifier = Modifier.weight(1f))
             KeyboardTopBlock()
             Spacer(modifier = Modifier.height(12.dp))
-            CustomDigitKeyboard2()
+//            CustomDigitKeyboard2()
         }
     }
 }
@@ -316,247 +249,3 @@ fun KeyboardTopBlock() {
 
 
 
-@Composable
-fun CoordinatedTransitionDemo() {
-    // Shared state to trigger transitions
-    var isExpanded by remember { mutableStateOf(false) }
-    val transition = updateTransition(targetState = isExpanded, label = "coordinatedTransition")
-
-    // Define animations for each box with staggered delays
-    val box1Size by transition.animateDp(
-        transitionSpec = { tween(durationMillis = 400) },
-        label = "box1Size"
-    ) { if (it) 150.dp else 50.dp }
-
-    val box2Size by transition.animateDp(
-        transitionSpec = { tween(durationMillis = 400, delayMillis = 200) }, // Delayed start
-        label = "box2Size"
-    ) { if (it) 150.dp else 50.dp }
-
-    val box3Offset by transition.animateDp(
-        transitionSpec = { tween(durationMillis = 400, delayMillis = 400) }, // Further delay
-        label = "box3Offset"
-    ) { if (it) 100.dp else 0.dp }
-
-    val box1Color by transition.animateColor(
-        transitionSpec = { tween(durationMillis = 400) },
-        label = "box1Color"
-    ) { if (it) Color.Blue else Color.Gray }
-
-    val box2Color by transition.animateColor(
-        transitionSpec = { tween(durationMillis = 400, delayMillis = 200) },
-        label = "box2Color"
-    ) { if (it) Color.Green else Color.Gray }
-
-    // Layout with coordinated elements
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Box 1: Size and color
-        Box(
-            modifier = Modifier
-                .size(box1Size)
-                .background(box1Color)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Box 2: Size and color (delayed)
-        Box(
-            modifier = Modifier
-                .size(box2Size)
-                .background(box2Color)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Box 3: Offset (further delayed)
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .offset(y = box3Offset)
-                .background(Color.Red)
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Trigger button
-        Button(onClick = { isExpanded = !isExpanded }) {
-            Text(text = if (isExpanded) "Collapse" else "Expand")
-        }
-    }
-}
-
-
-@Composable
-fun CrossfadeElementsDemo() {
-    var showImage by remember { mutableStateOf(true) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Crossfade(
-            targetState = showImage,
-            animationSpec = tween(durationMillis = 700),
-            label = "elementCrossfade"
-        ) { isImageVisible ->
-            if (isImageVisible) {
-                // First element: An image placeholder
-                Box(
-                    modifier = Modifier
-                        .size(200.dp)
-                        .background(Color.Cyan),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Image Placeholder", color = Color.Black)
-                }
-            } else {
-                // Second element: A text block
-                Column(
-                    modifier = Modifier
-                        .size(200.dp)
-                        .background(Color.Yellow),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text("Hello, Compose!", style = MaterialTheme.typography.headlineLarge)
-                    Text("This is a crossfade demo.")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { showImage = !showImage }) {
-            Text(text = if (showImage) "Show Text" else "Show Image")
-        }
-    }
-}
-
-
-@Composable
-fun AnimatedTabLayout() {
-    // State to track the currently selected tab
-    var selectedTab by remember { mutableStateOf("tiger") }
-
-    // List of available tabs
-    val tabs = listOf("tiger", "lion", "horse")
-
-    // Tab container
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .height(50.dp)
-            .background(Color.White, RoundedCornerShape(8.dp)),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        tabs.forEach { tab ->
-            // Animate background color based on selection
-            val backgroundColor by animateColorAsState(
-                targetValue = if (selectedTab == tab) Color.Gray else Color.White,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMedium
-                ),
-                label = "tab_background"
-            )
-
-            // Tab title container
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(backgroundColor)
-                    .clickable { selectedTab = tab },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = tab.capitalize(),
-                    color = if (selectedTab == tab) Color.White else Color.Black,
-                    fontSize = 16.sp,
-                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CrossfadeTabLayout() {
-    // State to track the currently selected tab
-    var selectedTab by remember { mutableStateOf("tiger") }
-
-    // List of available tabs
-    val tabs = listOf("tiger", "lion", "horse")
-
-    // Tab container
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        // Tabs Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .background(Color.White, RoundedCornerShape(8.dp)),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            tabs.forEach { tab ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { selectedTab = tab },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Crossfade(
-                        targetState = selectedTab == tab,
-                        animationSpec = tween(durationMillis = 300),
-                        label = "tab_fade"
-                    ) { isSelected ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(if (isSelected) Color.Gray else Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = tab.capitalize(),
-                                color = if (isSelected) Color.White else Color.Black,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Optional: Content area based on selected tab
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Example of showing content based on selected tab
-        Crossfade(
-            targetState = selectedTab,
-            animationSpec = tween(durationMillis = 300),
-            label = "content_fade"
-        ) { tab ->
-            Text(
-                text = "Content for $tab",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
