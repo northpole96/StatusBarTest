@@ -9,6 +9,7 @@ import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Contrast
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -64,8 +66,10 @@ import androidx.room.util.TableInfo
 import com.example.statusbartest.TransactionViewModel.FilterType
 import com.example.statusbartest.ui.theme.StatusBarTestTheme
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
@@ -319,20 +323,66 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Date Picker Button
-            Button(onClick = {
-                val datePickerDialog = DatePickerDialog(
-                    context,
-                    { _, year, month, dayOfMonth ->
-                        selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                    },
-                    selectedDate.year,
-                    selectedDate.monthValue - 1,
-                    selectedDate.dayOfMonth
+            // Material 3 Date Picker
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true },
+                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Select Date",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = selectedDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneId.systemDefault())
+                        .toInstant().toEpochMilli()
                 )
-                datePickerDialog.show()
-            }) {
-                Text("Date: $selectedDate")
+
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        Button(onClick = {
+                            datePickerState.selectedDateMillis?.let {
+                                val newDate = Instant.ofEpochMilli(it)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+                                selectedDate = newDate
+                            }
+                            showDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(
+                        state = datePickerState,
+
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -347,9 +397,9 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = saveTransaction) {
-                Text("Save Transaction")
-            }
+//            Button(onClick = saveTransaction) {
+//                Text("Save Transaction")
+//            }
         }
     }
 }
