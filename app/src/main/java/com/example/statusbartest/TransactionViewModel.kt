@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
 import java.time.format.DateTimeFormatter
 import java.time.YearMonth
@@ -18,7 +19,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
     val allTransactions: Flow<List<Transaction>> = _allTransactions
 
-    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
     private val _filterType = MutableStateFlow<FilterType>(FilterType.ALL)
     val filterType: Flow<FilterType> = _filterType
 
@@ -33,6 +36,12 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory: Flow<String> = _selectedCategory
+
+    // Available expense categories
+    val expenseCategories = listOf("Food", "Transport", "Shopping", "Bills", "Entertainment", "Health", "Other")
+
+    // Available income categories
+    val incomeCategories = listOf("Salary", "Freelance", "Gift", "Investment", "Other")
 
     init {
         val transactionDao = AppDatabase.getDatabase(application).transactionDao()
@@ -62,25 +71,26 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     ): List<Transaction> {
         var filteredTransactions = when(type) {
             FilterType.DAY -> transactions.filter {
-                LocalDate.parse(it.date, formatter) == date
+                LocalDate.parse(it.date, dateFormatter) == date
             }
             FilterType.WEEK -> transactions.filter {
-                val transactionDate = LocalDate.parse(it.date, formatter)
+                val transactionDate = LocalDate.parse(it.date, dateFormatter)
                 val transactionWeekStart = transactionDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 transactionWeekStart == weekStart
             }
             FilterType.MONTH -> transactions.filter {
-                YearMonth.from(LocalDate.parse(it.date, formatter)) == month
+                YearMonth.from(LocalDate.parse(it.date, dateFormatter)) == month
             }
             FilterType.CATEGORY -> transactions
             FilterType.ALL -> transactions
         }
 
-        // Apply category filter
+        // Apply category filter if specified
         filteredTransactions = when(category) {
             "Income" -> filteredTransactions.filter { it.type == "Income" }
             "Expense" -> filteredTransactions.filter { it.type == "Expense" }
-            else -> filteredTransactions
+            "All" -> filteredTransactions
+            else -> filteredTransactions.filter { it.category == category } // Filter by specific category
         }
 
         return filteredTransactions
@@ -106,11 +116,21 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
             .sumOf { it.amount }
     }
 
-    fun insert(amount: Double, type: String, date: LocalDate) = viewModelScope.launch(Dispatchers.IO) {
+    fun insert(
+        amount: Double,
+        type: String,
+        date: LocalDate,
+        time: LocalTime = LocalTime.now(),
+        category: String = "Other",
+        notes: String = ""
+    ) = viewModelScope.launch(Dispatchers.IO) {
         val transaction = Transaction(
             amount = amount,
             type = type,
-            date = date.format(formatter)
+            date = date.format(dateFormatter),
+            time = time.format(timeFormatter),
+            category = category,
+            notes = notes
         )
         repository.insert(transaction)
     }

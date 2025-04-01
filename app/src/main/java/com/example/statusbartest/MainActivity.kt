@@ -6,9 +6,11 @@ import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,14 +20,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -33,6 +38,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -54,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
@@ -68,6 +75,8 @@ import com.example.statusbartest.ui.theme.StatusBarTestTheme
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -257,22 +266,41 @@ fun AddTransactionBottomSheet(
     var input by remember { mutableStateOf("") }
     var transactionType by remember { mutableStateOf("Expense") }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var selectedTime by remember { mutableStateOf(LocalTime.now()) }
+    var selectedCategory by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    // List of predefined categories
+    val expenseCategories = listOf("Food", "Transport", "Shopping", "Bills", "Entertainment", "Health", "Other")
+    val incomeCategories = listOf("Salary", "Freelance", "Gift", "Investment", "Other")
+
+    // Get categories based on transaction type
+    val categories = if (transactionType == "Expense") expenseCategories else incomeCategories
 
     // Function to save the transaction
     val saveTransaction = {
-        if (input.isNotEmpty()) {
+        if (input.isNotEmpty() && selectedCategory.isNotEmpty()) {
             try {
+                // Create a LocalDateTime from date and time
+                val dateTime = LocalDateTime.of(selectedDate, selectedTime)
+
                 // Save transaction to database
                 viewModel.insert(
-                    amount = input.toDouble(),
+                    amount = if (input.isEmpty()) 0.0 else input.toDouble(),
                     type = transactionType,
-                    date = selectedDate
+                    date = selectedDate,
+                    time = selectedTime,
+                    category = selectedCategory,
+                    notes = notes
                 )
                 onDismiss()
             } catch (e: NumberFormatException) {
                 // Handle invalid input
+                Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            Toast.makeText(context, "Please select a category", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -292,7 +320,7 @@ fun AddTransactionBottomSheet(
             Text("Add Transaction", style = MaterialTheme.typography.headlineMedium)
 
             Spacer(modifier = Modifier.height(16.dp))
-            Row (verticalAlignment = Alignment.CenterVertically){
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
 
                 Text(
@@ -303,8 +331,8 @@ fun AddTransactionBottomSheet(
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = {
                     if (input.isNotEmpty()) {
-                        input=input.dropLast(1)
-                        Log.d("input",input)
+                        input = input.dropLast(1)
+                        Log.d("input", input)
                     }
                 }) {
                     Icon(
@@ -315,42 +343,142 @@ fun AddTransactionBottomSheet(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-//            CustomDigitKeyboard(input = input, onInputChange = { input = it })
             CustomDigitKeyboard(
                 input = input,
                 onInputChange = { input = it },
-                onSave = saveTransaction // Pass the save function to the keyboard
+                onSave = saveTransaction
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Material 3 Date Picker
-            var showDatePicker by remember { mutableStateOf(false) }
+            // Transaction Type Toggle
+            TransactionTypeSelectionBarWithState(
+                isExpense = transactionType == "Expense",
+                onTransactionTypeChange = { isExpense ->
+                    transactionType = if (isExpense) "Expense" else "Income"
+                    // Reset category when type changes
+                    selectedCategory = ""
+                }
+            )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category Selection
             OutlinedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth(),
                 border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Select Date",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = selectedDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                var expandedCategory by remember { mutableStateOf(false) }
+
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedCategory = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = "Select Category",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = if (selectedCategory.isEmpty()) "Select Category" else selectedCategory,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    if (expandedCategory) {
+                        DropdownMenu(
+                            expanded = expandedCategory,
+                            onDismissRequest = { expandedCategory = false },
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(text = category) },
+                                    onClick = {
+                                        selectedCategory = category
+                                        expandedCategory = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Date and Time Picker
+            var showDatePicker by remember { mutableStateOf(false) }
+            var showTimePicker by remember { mutableStateOf(false) }
+
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
+            ) {
+                Column(Modifier.fillMaxWidth()) {
+                    // Date Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDatePicker = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Select Date",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = selectedDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    Divider(color = Color.LightGray.copy(alpha = 0.4f))
+
+                    // Time Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTimePicker = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "Select Time",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = selectedTime.format(DateTimeFormatter.ofPattern("hh:mm a")),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Notes Field
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("Notes (Optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 3,
+                shape = RoundedCornerShape(12.dp),
+//                colors = TextFieldDefaults.outlinedTextFieldColors(
+//                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f)
+//                )
+            )
 
             if (showDatePicker) {
                 val datePickerState = rememberDatePickerState(
@@ -383,26 +511,70 @@ fun AddTransactionBottomSheet(
                     DatePicker(
                         colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                         state = datePickerState,
-
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            if (showTimePicker) {
+                val timePickerState = rememberTimePickerState(
+                    initialHour = selectedTime.hour,
+                    initialMinute = selectedTime.minute
+                )
 
-            // Modified Transaction Type Toggle using TransactionTypeSelectionBar
-            TransactionTypeSelectionBarWithState(
-                isExpense = transactionType == "Expense",
-                onTransactionTypeChange = { isExpense ->
-                    transactionType = if (isExpense) "Expense" else "Income"
+                TimePickerDialog(
+                    onDismissRequest = { showTimePicker = false },
+                    onConfirm = {
+                        selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        showTimePicker = false
+                    },
+                    title = "Select Time"
+                ) {
+                    TimePicker(state = timePickerState)
                 }
-            )
+            }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(24.dp))
+@Composable
+fun TimePickerDialog(
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = title, style = MaterialTheme.typography.titleLarge)
 
-//            Button(onClick = saveTransaction) {
-//                Text("Save Transaction")
-//            }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                content()
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismissRequest) {
+                        Text("Cancel")
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(onClick = onConfirm) {
+                        Text("OK")
+                    }
+                }
+            }
         }
     }
 }
@@ -410,15 +582,17 @@ fun AddTransactionBottomSheet(
 @Composable
 fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     val navController = rememberNavController()
+    // Updated bottom nav items (removed Search)
     val bottomNavItems = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Search,
         BottomNavItem.Profile,
         BottomNavItem.Settings,
         BottomNavItem.Info
     )
 
     var showSheet by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -438,18 +612,73 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 }
             }
         },
-//        floatingActionButton = {
-//            FloatingActionButton(onClick = { showSheet = true }) {
-//                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
-//            }
-//        },
         topBar = {
-            TopAppBar(
-                title = { Text("Transactions") },
-                actions = {
-                    FilterDropdown(LocalContext.current, navController)
+            if (showSearch) {
+                // Search TopBar
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onSearch = { /* Handle search */ },
+                    active = true,
+                    onActiveChange = { showSearch = it },
+                    placeholder = { Text("Search transactions...") },
+                    leadingIcon = {
+                        IconButton(onClick = { showSearch = false }) {
+                            Icon(Icons.Default.ArrowBack, "Back")
+                        }
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, "Clear")
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Search results will be shown here
+                    // This will be populated based on searchQuery
+                    val filteredTransactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+                    if (searchQuery.isNotEmpty()) {
+                        val results = filteredTransactions.filter {
+                            it.category.contains(searchQuery, ignoreCase = true) ||
+                                    it.notes.contains(searchQuery, ignoreCase = true) ||
+                                    it.amount.toString().contains(searchQuery)
+                        }
+
+                        if (results.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No results found")
+                            }
+                        } else {
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                items(results) { transaction ->
+                                    TransactionItem(transaction)
+                                }
+                            }
+                        }
+                    }
                 }
-            )
+            } else {
+                // Regular TopBar
+                TopAppBar(
+                    title = { Text("Transactions") },
+                    navigationIcon = {
+                        IconButton(onClick = { showSearch = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                    },
+                    actions = {
+                        FilterDropdown(LocalContext.current, navController)
+                    }
+                )
+            }
         }
     ) { padding ->
         NavHost(
@@ -472,11 +701,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
             composable("category_filter") {
                 CategoryFilterScreen(viewModel)
             }
-            composable(BottomNavItem.Search.route) {
-//                ScreenContent("Search Screen", Color(0xFFFFF9C4))
-           SearchScreen()
-            }
-
             composable(BottomNavItem.Settings.route) {
                 ScreenContent("Settings Screen", Color(0xFFFFCCBC))
             }
@@ -879,31 +1103,124 @@ fun TransactionItem(transaction: Transaction) {
     val amountColor = if (transaction.type == "Income") Color.Green else Color.Black
     val amountPrefix = if (transaction.type == "Income") "+" else "-"
     val date = LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
+    val time = if (transaction.time.isNotEmpty()) {
+        try {
+            LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
+                .format(DateTimeFormatter.ofPattern("h:mm a"))
+        } catch (e: Exception) {
+            ""
+        }
+    } else ""
 
-    Row(
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 8.dp)
+            .clickable { expanded = !expanded }
     ) {
-        Column {
+        // Main transaction row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Category indicator
+                    Surface(
+                        shape = CircleShape,
+                        color = getCategoryColor(transaction.category),
+                        modifier = Modifier.size(12.dp)
+                    ) {}
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Transaction category and type
+                    Column {
+                        Text(
+                            text = transaction.category,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        Text(
+                            text = "${date.format(DateTimeFormatter.ofPattern("MMM dd"))} ${if (time.isNotEmpty()) "• $time" else ""}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
             Text(
-                text = transaction.type,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                text = "$amountPrefix$${transaction.amount}",
+                style = MaterialTheme.typography.titleMedium,
+                color = amountColor
             )
         }
 
-        Text(
-            text = "$amountPrefix$${transaction.amount}",
-            style = MaterialTheme.typography.titleMedium,
-            color = amountColor
-        )
+        // Expanded details section
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 20.dp, end = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Date & Time",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+
+                    Text(
+                        text = "${date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))}${
+                            if (time.isNotEmpty()) " at $time" else ""
+                        }",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                if (transaction.notes.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Notes",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+
+                    Text(
+                        text = transaction.notes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    Divider(color = Color.LightGray.copy(alpha = 0.4f))
+}
+
+// Function to get color for each category (you can customize these)
+fun getCategoryColor(category: String): Color {
+    return when (category) {
+        "Food" -> Color(0xFFFF9800)          // Orange
+        "Transport" -> Color(0xFF03A9F4)     // Light Blue
+        "Shopping" -> Color(0xFFE91E63)      // Pink
+        "Bills" -> Color(0xFF4CAF50)         // Green
+        "Entertainment" -> Color(0xFF9C27B0) // Purple
+        "Health" -> Color(0xFF00BCD4)        // Cyan
+        "Salary" -> Color(0xFF4CAF50)        // Green
+        "Freelance" -> Color(0xFF2196F3)     // Blue
+        "Gift" -> Color(0xFFFF5722)          // Deep Orange
+        "Investment" -> Color(0xFF673AB7)    // Deep Purple
+        else -> Color(0xFF9E9E9E)            // Gray for Others
     }
 }
 
