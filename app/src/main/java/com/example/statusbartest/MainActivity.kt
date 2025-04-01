@@ -87,7 +87,8 @@ sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: 
 fun BottomNavBar(navController: NavController, items: List<BottomNavItem>,onItemClick: (BottomNavItem) -> Unit ) {
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
 //hello first commit
-    NavigationBar {
+    NavigationBar (containerColor=MaterialTheme.colorScheme.surface){
+
         items.forEach { item ->
             NavigationBarItem(
                 icon = { Icon(item.icon, contentDescription = item.label) },
@@ -315,7 +316,7 @@ fun AddTransactionBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
 //            CustomDigitKeyboard(input = input, onInputChange = { input = it })
-            CustomDigitKeyboard2(
+            CustomDigitKeyboard(
                 input = input,
                 onInputChange = { input = it },
                 onSave = saveTransaction // Pass the save function to the keyboard
@@ -358,6 +359,7 @@ fun AddTransactionBottomSheet(
                 )
 
                 DatePickerDialog(
+                    colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                     onDismissRequest = { showDatePicker = false },
                     confirmButton = {
                         Button(onClick = {
@@ -379,6 +381,7 @@ fun AddTransactionBottomSheet(
                     }
                 ) {
                     DatePicker(
+                        colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                         state = datePickerState,
 
                     )
@@ -418,6 +421,7 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     var showSheet by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
             BottomNavBar(
                 navController = navController,
@@ -520,7 +524,8 @@ fun FilterDropdown(
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
             listOf("All", "Day", "Week", "Month", "Category").forEach { item ->
                 DropdownMenuItem(
@@ -995,7 +1000,8 @@ fun SpentSummary(
                 }
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    containerColor = MaterialTheme.colorScheme.surface
                 ) {
                     periods.forEach { period ->
                         DropdownMenuItem(
