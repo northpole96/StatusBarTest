@@ -46,6 +46,7 @@ import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.rounded.Backspace
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -280,14 +281,17 @@ fun AddTransactionBottomSheet(
 
     // Function to save the transaction
     val saveTransaction = {
-        if (input.isNotEmpty() && selectedCategory.isNotEmpty()) {
+        if (selectedCategory.isNotEmpty()) {
             try {
                 // Create a LocalDateTime from date and time
                 val dateTime = LocalDateTime.of(selectedDate, selectedTime)
 
                 // Save transaction to database
+                // Properly handle empty input as 0.0
+                val amount = if (input.isEmpty()) 0.0 else input.toDouble()
+
                 viewModel.insert(
-                    amount = if (input.isEmpty()) 0.0 else input.toDouble(),
+                    amount = amount,
                     type = transactionType,
                     date = selectedDate,
                     time = selectedTime,
@@ -323,8 +327,9 @@ fun AddTransactionBottomSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
 
+                // Display "0" if input is empty, otherwise show the input
                 Text(
-                    text = "$input",
+                    text = if (input.isEmpty()) "0" else input,
                     style = MaterialTheme.typography.displaySmall,
                     modifier = Modifier.padding(8.dp)
                 )
@@ -594,6 +599,21 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
+    // Track the current filter
+    val currentFilterType by viewModel.filterType.collectAsState(initial = FilterType.ALL)
+    var currentFilterName by remember { mutableStateOf("All") }
+
+    // Update filter name when filter type changes
+    LaunchedEffect(currentFilterType) {
+        currentFilterName = when(currentFilterType) {
+            FilterType.ALL -> "All"
+            FilterType.DAY -> "Day"
+            FilterType.WEEK -> "Week"
+            FilterType.MONTH -> "Month"
+            FilterType.CATEGORY -> "Category"
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
@@ -675,7 +695,32 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         }
                     },
                     actions = {
-                        FilterDropdown(LocalContext.current, navController)
+                        // Show the filter chip when a filter is active
+                        if (currentFilterType != FilterType.ALL) {
+                            FilterChip(
+                                selected = true,
+                                onClick = { /* Handled by trailing icon */ },
+                                label = { Text(currentFilterName) },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.setFilterType(FilterType.ALL)
+                                            navController.navigate(BottomNavItem.Home.route)
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Clear filter",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
+
+                        FilterDropdown(LocalContext.current, navController, viewModel)
                     }
                 )
             }
@@ -730,10 +775,25 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
 @Composable
 fun FilterDropdown(
     context: Context,
-    navController: NavController
+    navController: NavController,
+    viewModel: TransactionViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf("All") }
+
+    // Keep track of filter state
+    val currentFilterType by viewModel.filterType.collectAsState(initial = FilterType.ALL)
+
+    // Update local state based on viewModel
+    LaunchedEffect(currentFilterType) {
+        selectedItem = when(currentFilterType) {
+            FilterType.ALL -> "All"
+            FilterType.DAY -> "Day"
+            FilterType.WEEK -> "Week"
+            FilterType.MONTH -> "Month"
+            FilterType.CATEGORY -> "Category"
+        }
+    }
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -758,11 +818,26 @@ fun FilterDropdown(
                         selectedItem = item
                         expanded = false
                         when (item) {
-                            "All" -> navController.navigate(BottomNavItem.Home.route)
-                            "Day" -> navController.navigate("day_filter")
-                            "Week" -> navController.navigate("week_filter")
-                            "Month" -> navController.navigate("month_filter")
-                            "Category" -> navController.navigate("category_filter")
+                            "All" -> {
+                                viewModel.setFilterType(FilterType.ALL)
+                                navController.navigate(BottomNavItem.Home.route)
+                            }
+                            "Day" -> {
+                                viewModel.setFilterType(FilterType.DAY)
+                                navController.navigate("day_filter")
+                            }
+                            "Week" -> {
+                                viewModel.setFilterType(FilterType.WEEK)
+                                navController.navigate("week_filter")
+                            }
+                            "Month" -> {
+                                viewModel.setFilterType(FilterType.MONTH)
+                                navController.navigate("month_filter")
+                            }
+                            "Category" -> {
+                                viewModel.setFilterType(FilterType.CATEGORY)
+                                navController.navigate("category_filter")
+                            }
                         }
                     }
                 )
