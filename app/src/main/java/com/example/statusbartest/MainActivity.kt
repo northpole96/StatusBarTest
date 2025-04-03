@@ -1380,7 +1380,8 @@ fun SpentSummary(
                 ) {
                     Text(
                         text = currentPeriod,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.border(1.dp, Color.Black, RoundedCornerShape(80.dp)).padding(horizontal = 12.dp, vertical = 4.dp)
                     )
 //                Spacer(Modifier.width(8.dp))
 //                Icon(
