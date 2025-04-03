@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -270,6 +271,7 @@ fun AddTransactionBottomSheet(
     var selectedTime by remember { mutableStateOf(LocalTime.now()) }
     var selectedCategory by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var isNotesFieldFocused by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // List of predefined categories
@@ -348,11 +350,7 @@ fun AddTransactionBottomSheet(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            CustomDigitKeyboard(
-                input = input,
-                onInputChange = { input = it },
-                onSave = saveTransaction
-            )
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -472,18 +470,40 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Notes Field
+            // Notes Field with focus tracker
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
                 label = { Text("Notes (Optional)") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        isNotesFieldFocused = focusState.isFocused
+                    },
                 maxLines = 3,
                 shape = RoundedCornerShape(12.dp),
-//                colors = TextFieldDefaults.outlinedTextFieldColors(
-//                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f)
-//                )
+                colors = OutlinedTextFieldDefaults.colors(
+                    // Customize colors
+                    focusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
+                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
+                    focusedLabelColor = Color.Black,
+                    unfocusedLabelColor = Color.Black,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.DarkGray,
+                    cursorColor = Color.Black,
+                )
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Only show the CustomDigitKeyboard when notes field is not focused
+            if (!isNotesFieldFocused) {
+                CustomDigitKeyboard(
+                    input = input,
+                    onInputChange = { input = it },
+                    onSave = saveTransaction
+                )
+            }
 
             if (showDatePicker) {
                 val datePickerState = rememberDatePickerState(
