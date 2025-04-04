@@ -135,6 +135,35 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         repository.insert(transaction)
     }
 
+
+    fun updateTransaction(
+        id: Long,
+        amount: Double,
+        type: String,
+        date: LocalDate,
+        time: LocalTime = LocalTime.now(),
+        category: String = "Other",
+        notes: String = ""
+    ) = viewModelScope.launch(Dispatchers.IO) {
+        val transaction = Transaction(
+            id = id,
+            amount = amount,
+            type = type,
+            date = date.format(dateFormatter),
+            time = time.format(timeFormatter),
+            category = category,
+            notes = notes,
+            createdAt = System.currentTimeMillis() // You might want to keep the original creation time instead
+        )
+        repository.update(transaction)
+    }
+
+
+    fun deleteTransaction(id: Long) = viewModelScope.launch(Dispatchers.IO) {
+        val transactionToDelete = _allTransactions.value.find { it.id == id } ?: return@launch
+        repository.delete(transactionToDelete)
+    }
+
     fun nextDay() {
         _currentDate.value = _currentDate.value.plusDays(1)
     }
