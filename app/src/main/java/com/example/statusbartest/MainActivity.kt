@@ -325,28 +325,34 @@ fun AddTransactionBottomSheet(
         ) {
             Text("Add Transaction", style = MaterialTheme.typography.headlineMedium)
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp) )
+            Box(modifier=Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
 
                 // Display "0" if input is empty, otherwise show the input
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = if (input.isEmpty()) "0" else input,
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displayLarge,
                     modifier = Modifier.padding(8.dp)
                 )
-                Spacer(Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically){
                 IconButton(onClick = {
                     if (input.isNotEmpty()) {
                         input = input.dropLast(1)
                         Log.d("input", input)
                     }
                 }) {
+
                     Icon(
                         imageVector = Icons.Rounded.Backspace,
                         contentDescription = "Backspace",
+                        Modifier.background(Color.LightGray.copy(0.4f), CircleShape).padding(12.dp),
+                        tint = Color.Gray
                     )
+
                 }
+            }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -397,7 +403,8 @@ fun AddTransactionBottomSheet(
                         DropdownMenu(
                             expanded = expandedCategory,
                             onDismissRequest = { expandedCategory = false },
-                            modifier = Modifier.fillMaxWidth(0.9f)
+                            modifier = Modifier.fillMaxWidth(0.9f),
+                            containerColor = MaterialTheme.colorScheme.surface
                         ) {
                             categories.forEach { category ->
                                 DropdownMenuItem(
@@ -471,30 +478,30 @@ fun AddTransactionBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Notes Field with focus tracker
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Notes (Optional)") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focusState ->
-                        isNotesFieldFocused = focusState.isFocused
-                    },
-                maxLines = 3,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    // Customize colors
-                    focusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
-                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
-                    focusedLabelColor = Color.Black,
-                    unfocusedLabelColor = Color.Black,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.DarkGray,
-                    cursorColor = Color.Black,
-                )
-            )
+//            OutlinedTextField(
+//                value = notes,
+//                onValueChange = { notes = it },
+//                label = { Text("Notes (Optional)") },
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .onFocusChanged { focusState ->
+//                        isNotesFieldFocused = focusState.isFocused
+//                    },
+//                maxLines = 3,
+//                shape = RoundedCornerShape(12.dp),
+//                colors = OutlinedTextFieldDefaults.colors(
+//                    // Customize colors
+//                    focusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
+//                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
+//                    focusedLabelColor = Color.Black,
+//                    unfocusedLabelColor = Color.Black,
+//                    focusedTextColor = Color.Black,
+//                    unfocusedTextColor = Color.DarkGray,
+//                    cursorColor = Color.Black,
+//                )
+//            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+//            Spacer(modifier = Modifier.height(16.dp))
 
             // Only show the CustomDigitKeyboard when notes field is not focused
             if (!isNotesFieldFocused) {
@@ -554,7 +561,16 @@ fun AddTransactionBottomSheet(
                     },
                     title = "Select Time"
                 ) {
-                    TimePicker(state = timePickerState)
+                    TimePicker(state = timePickerState,
+                        colors=TimePickerDefaults.colors(
+                           clockDialColor = Color.LightGray.copy(0.4f),
+                            timeSelectorSelectedContentColor = Color.White,
+                            timeSelectorSelectedContainerColor = Color.Black,
+                            timeSelectorUnselectedContentColor = Color.Black,
+                            timeSelectorUnselectedContainerColor = Color.LightGray.copy(0.4f)
+
+                        )
+                    )
                 }
             }
         }
@@ -825,7 +841,7 @@ fun FilterDropdown(
                 contentDescription = "Filter menu"
             )
         }
-
+//filter selection dropdown
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
@@ -1387,7 +1403,6 @@ fun SpentSummary(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // Period Dropdown
         var expanded by remember { mutableStateOf(false) }
         Row (Modifier.fillMaxWidth(),verticalAlignment = Alignment.CenterVertically,horizontalArrangement = Arrangement.Center) {
             Text("Spent")
@@ -1411,6 +1426,8 @@ fun SpentSummary(
 //                )
 
                 }
+                // Period summury  Dropdown
+
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
