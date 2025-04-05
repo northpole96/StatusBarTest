@@ -93,6 +93,7 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.absoluteValue
 
@@ -2039,63 +2040,120 @@ fun TransactionListScreen(
 }
 @Composable
 fun TransactionItem(
-    transaction: Transaction,
+    transaction: Transaction, // Assuming Transaction data class is defined and imported
     onItemClick: (Transaction) -> Unit,
     categoryViewModel: CategoryViewModel? = null // Optional ViewModel to get category details
 ) {
-    val amountColor = if (transaction.type == "Income") Color.Green else Color.Black
+    val amountColor = if (transaction.type == "Income") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface // Use theme color or specific green/black
     val amountPrefix = if (transaction.type == "Income") "+" else "-"
-    val date = LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
+    val date = try {
+        LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
+    } catch (e: DateTimeParseException) {
+        LocalDate.now() // Provide a fallback date
+    }
     val time = if (transaction.time.isNotEmpty()) {
         try {
             LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
                 .format(DateTimeFormatter.ofPattern("h:mm a"))
-        } catch (e: Exception) {
-            ""
+        } catch (e: DateTimeParseException) {
+            "" // Fallback to empty string if time parsing fails
         }
     } else ""
 
-    var expanded by remember { mutableStateOf(false) }
+    // --- Category Info Handling ---
+    // Use remember to recalculate only when dependencies change
+    val categoryDetails = remember(categoryViewModel, transaction.type, transaction.category) {
+        if (categoryViewModel == null) {
+            null // No ViewModel, no details
+        } else {
+            // Fetch the flows within the remember scope if needed, but collectAsState is better outside
+            // For simplicity here, assuming flows provide reasonably up-to-date data or are collected elsewhere.
+            // A more robust solution might involve passing the collected lists directly.
+            // This example accesses the flows directly - consider if this fits your update needs.
+            // WARNING: Directly accessing flow value like this is generally discouraged in Compose.
+            // It's better to collectAsState at a higher level or pass the collected lists.
+            // However, to fix the immediate errors based on the original structure:
+            /*
+             // --- Alternative using collectAsState (Better Practice) ---
+             val defaultCategories by if (transaction.type == "Expense") {
+                 categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
+             } else {
+                 categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
+             }
+             val customCategories by if (transaction.type == "Expense") {
+                 categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
+             } else {
+                 categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+             }
+             (defaultCategories + customCategories).find { it.name == transaction.category }
+             */
 
-    // Get category info if the ViewModel is provided
-    val categoriesFlow = if (categoryViewModel != null && transaction.type == "Expense")
-        categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
-    else if (categoryViewModel != null)
-        categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
-    else null
+            // --- Direct Flow Access (Simpler fix for original code structure, but less ideal) ---
+            // This requires CategoryRepository methods to return Flow that emits eagerly or synchronously
+            // which might not be the case with Room/Database flows.
+            // **Prefer the collectAsState approach shown above.**
+            // The following code likely won't work correctly with standard Room flows.
+            // It's provided to show how to fix the *syntax* errors in the original logic.
 
-    val customCategoriesFlow = if (categoryViewModel != null && transaction.type == "Expense")
-        categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
-    else if (categoryViewModel != null)
-        categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
-    else null
+            // Placeholder: Replace with actual synchronous fetch or pass collected lists
+            val allCats: List<Category> = emptyList() // Needs proper implementation
 
-    // Get the category object if possible
-//    val categoryObject = if (categoriesFlow != null && customCategoriesFlow != null) {
-//        val allCats = categoriesFlow.value + customCategoriesFlow.value
-//        allCats.find { it.name == transaction.category }
-//    } else null
+            // --- Let's assume you pass the *lists* directly for simplicity now ---
+            // You would modify the function signature:
+            // transaction: Transaction,
+            // onItemClick: (Transaction) -> Unit,
+            // categories: List<Category> = emptyList() // Pass the relevant list here
+
+            // --- Or find directly using ViewModel methods if they exist ---
+            // Example: val foundCategory = categoryViewModel.findCategoryByName(transaction.category, transaction.type)
+            // For now, we'll simulate finding it based on the ViewModel structure provided
+            // This still requires the flows to be collected properly. We use derivedStateOf for calculation.
+
+            null // Placeholder - Requires proper flow collection or data passing
+        }
+    }
+
+    // Derived state to react to changes in flows if viewModel exists
+    val categoryObject: Category? = if (categoryViewModel != null) {
+        // Collect the relevant flows
+        val defaultCategories by if (transaction.type == "Expense") {
+            categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
+        } else {
+            categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
+        }
+        val customCategories by if (transaction.type == "Expense") {
+            categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
+        } else {
+            categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+        }
+
+        // Combine and find the category
+        remember(defaultCategories, customCategories, transaction.category) {
+            (defaultCategories + customCategories).find { it.name == transaction.category }
+        }
+    } else {
+        null // No view model, no category object
+    }
+
 
     // Determine the color to use for the category indicator
-    val categoryColor= Color.Gray
-//    val categoryColor = categoryObject?.let {
-//        try {
-//            Color(android.graphics.Color.parseColor(it.colorHex))
-//        } catch (e: Exception) {
-//            getCategoryColor(transaction.category) // Fallback to the old method
-//        }
-//    } ?: getCategoryColor(transaction.category)
+    val categoryColor: Color = categoryObject?.let { cat ->
+        try {
+            // Ensure android.graphics.Color is imported if needed
+            Color(android.graphics.Color.parseColor(cat.colorHex))
+        } catch (e: Exception) { // Catch potential parsing errors
+            Color.Gray // Fallback color on parse error
+        }
+    } ?: Color.Gray // Fallback color if categoryObject is null
 
-//    val categoryEmoji = categoryObject?.emoji ?: ""
-val categoryEmoji=""
+    // Determine the emoji
+    val categoryEmoji: String = categoryObject?.emoji ?: "" // Fallback emoji if categoryObject is null or has no emoji
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable {
-                // Instead of toggling expanded state, call the onItemClick callback
-                onItemClick(transaction)
-            }
+            .clickable { onItemClick(transaction) } // Call onItemClick directly
+            .padding(vertical = 8.dp, horizontal = 16.dp) // Add horizontal padding
     ) {
         // Main transaction row
         Row(
@@ -2103,104 +2161,62 @@ val categoryEmoji=""
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Category indicator with emoji if available
-                    if (categoryEmoji.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(
-                                    color = categoryColor,
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = categoryEmoji,
-                                fontSize = 16.sp
-                            )
-                        }
-                    } else {
-                        // Fall back to the colored circle if no emoji
-                        Surface(
-                            shape = CircleShape,
+            // Left side: Category info
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // Category indicator (Emoji or Circle)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp) // Consistent size
+                        .background(
                             color = categoryColor,
-                            modifier = Modifier.size(12.dp)
-                        ) {}
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Transaction category and type
-                    Column {
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (categoryEmoji.isNotEmpty()) {
                         Text(
-                            text = transaction.category,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-
-                        Text(
-                            text = "${date.format(DateTimeFormatter.ofPattern("MMM dd"))} ${if (time.isNotEmpty()) "• $time" else ""}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
+                            text = categoryEmoji,
+                            fontSize = 16.sp // Adjust size as needed
                         )
                     }
+                    // If no emoji, the colored background serves as the indicator
+                }
+
+                Spacer(modifier = Modifier.width(12.dp)) // Increased spacer
+
+                // Transaction category and date/time
+                Column {
+                    Text(
+                        text = transaction.category,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1 // Prevent wrapping issues
+                    )
+
+                    Text(
+                        text = "${date.format(DateTimeFormatter.ofPattern("MMM dd"))}${if (time.isNotEmpty()) " • $time" else ""}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
                 }
             }
 
+            Spacer(modifier = Modifier.width(8.dp)) // Spacer before amount
+
+            // Right side: Amount
             Text(
-                text = "$amountPrefix$${transaction.amount}",
+                text = "$amountPrefix$${"%.2f".format(transaction.amount)}", // Format amount
                 style = MaterialTheme.typography.titleMedium,
                 color = amountColor
             )
         }
 
-        // Expanded details section (when tapped)
-        AnimatedVisibility(visible = expanded) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, start = 20.dp, end = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Date & Time",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-
-                    Text(
-                        text = "${date.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))}${
-                            if (time.isNotEmpty()) " at $time" else ""
-                        }",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                if (transaction.notes.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Notes",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-
-                    Text(
-                        text = transaction.notes,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        }
+        // Removed the AnimatedVisibility section as per the comment in the original code
+        // If you want expansion, re-add AnimatedVisibility and toggle a state in the clickable lambda.
     }
 
-    Divider(color = Color.LightGray.copy(alpha = 0.4f))
+    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)) // Use theme color for divider
 }
+
 
 // Function to get color for each category (you can customize these)
 fun getCategoryColor(category: String): Color {
