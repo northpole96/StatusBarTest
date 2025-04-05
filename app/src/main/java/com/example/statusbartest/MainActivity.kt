@@ -711,6 +711,9 @@ fun TimePickerDialog(
         }
     }
 }
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(window: Window, viewModel: TransactionViewModel) {
@@ -726,12 +729,27 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // Add state for the transaction being edited
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
 
     // Track the current filter
     val currentFilterType by viewModel.filterType.collectAsState(initial = FilterType.ALL)
     var currentFilterName by remember { mutableStateOf("All") }
+
+    val context = LocalContext.current
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+
+    // Filtered transactions based on search query
+    val searchFilteredTransactions = remember(searchQuery, transactions) {
+        if (searchQuery.isEmpty()) {
+            transactions
+        } else {
+            transactions.filter { transaction ->
+                transaction.category.contains(searchQuery, ignoreCase = true) ||
+                        transaction.notes.contains(searchQuery, ignoreCase = true) ||
+                        transaction.amount.toString().contains(searchQuery)
+            }
+        }
+    }
 
     // Update filter name when filter type changes
     LaunchedEffect(currentFilterType) {
@@ -746,13 +764,153 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = {
+                        if (showSearch) {
+                            // Search box
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("Search transactions...") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search"
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear search"
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.LightGray.copy(alpha = 0.4f),
+                                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.4f)
+                                )
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Left - Search icon
+                                IconButton(onClick = { showSearch = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search"
+                                    )
+                                }
+
+                                // Middle - Filter chips
+                                if (currentFilterType != FilterType.ALL) {
+                                    FilterChip(
+                                        selected = true,
+                                        onClick = {
+                                            viewModel.setFilterType(FilterType.ALL)
+                                            navController.navigate(BottomNavItem.Home.route)
+                                        },
+                                        label = { Text(currentFilterName) },
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Default.Clear,
+                                                contentDescription = "Clear filter",
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = Color.Black,
+                                            selectedLabelColor = Color.White,
+                                            selectedTrailingIconColor = Color.White
+                                        )
+                                    )
+                                } else {
+                                    Text(
+                                        "Transaction Manager",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+
+                                // Right - Filter dropdown
+                                FilterDropdown(
+                                    context = context,
+                                    navController = navController,
+                                    viewModel = viewModel
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        // No actions here as we're using a custom title layout
+                        if (showSearch) {
+                            IconButton(onClick = {
+                                showSearch = false
+                                searchQuery = ""
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Close Search"
+                                )
+                            }
+                        }
+                    }
+                )
+
+                // Category filter chip if needed
+                val selectedCategory by viewModel.selectedCategory.collectAsState(initial = "All")
+                AnimatedVisibility(
+                    visible = currentFilterType == FilterType.CATEGORY &&
+                            selectedCategory != "All" &&
+                            selectedCategory != "Income" &&
+                            selectedCategory != "Expense"
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        FilterChip(
+                            selected = true,
+                            onClick = {
+                                val parentCategory = if (viewModel.incomeCategories.contains(selectedCategory))
+                                    "Income" else "Expense"
+                                viewModel.setSelectedCategory(parentCategory)
+                            },
+                            label = { Text("Category: $selectedCategory") },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "Clear category filter",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color.Black,
+                                selectedLabelColor = Color.White,
+                                selectedTrailingIconColor = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        },
         bottomBar = {
+            // Your existing BottomNavBar code
             BottomNavBar(
                 navController = navController,
                 items = bottomNavItems
             ) { selectedItem ->
                 if (selectedItem.route == BottomNavItem.Profile.route) {
-                    // Clear transaction to edit when adding a new one
                     transactionToEdit = null
                     showSheet = true
                 } else {
@@ -763,68 +921,115 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                     }
                 }
             }
-        },
-        // Rest of the Scaffold implementation...
-        // ...
+        }
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = BottomNavItem.Home.route,
-            modifier = Modifier.padding(padding)
-        ) {
-            composable(BottomNavItem.Home.route) {
-                // Pass the transaction click handler to the TransactionListScreen
-                TransactionListScreen(
-                    viewModel = viewModel,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
-                    }
+        // Display either regular content or search results
+        if (showSearch && searchQuery.isNotEmpty()) {
+            // Show search results
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Search Results (${searchFilteredTransactions.size})",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-            }
 
-            // Other composables remain the same
-            composable("day_filter") {
-                DayFilterScreen(
-                    viewModel = viewModel,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
+                if (searchFilteredTransactions.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No transactions found for \"$searchQuery\"",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                )
-            }
-            composable("week_filter") {
-                WeekFilterScreen(
-                    viewModel = viewModel,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
+                } else {
+                    LazyColumn {
+                        items(searchFilteredTransactions) { transaction ->
+                            TransactionItem(
+                                transaction = transaction,
+                                onItemClick = {
+                                    transactionToEdit = transaction
+                                    showSheet = true
+                                }
+                            )
+                            Divider()
+                        }
                     }
-                )
+                }
             }
-            composable("month_filter") {
-                MonthFilterScreen(
-                    viewModel = viewModel,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
-                    }
-                )
-            }
-            composable("category_filter") {
-                CategoryFilterScreen(
-                    viewModel = viewModel,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
-                    }
-                )
-            }
-            composable(BottomNavItem.Settings.route) {
-                ScreenContent("Settings Screen", Color(0xFFFFCCBC))
-            }
-            composable(BottomNavItem.Info.route) {
-                ScreenContent("Info Screen", Color(0xFFFFAB91))
+        } else {
+            // Regular navigation content
+            NavHost(
+                navController = navController,
+                startDestination = BottomNavItem.Home.route,
+                modifier = Modifier.padding(padding)
+            ) {
+                // Your existing composables
+                composable(BottomNavItem.Home.route) {
+                    TransactionListScreen(
+                        viewModel = viewModel,
+                        onTransactionClick = { transaction ->
+                            transactionToEdit = transaction
+                            showSheet = true
+                        }
+                    )
+                }
+
+                composable("day_filter") {
+                    DayFilterScreen(
+                        viewModel = viewModel,
+                        onTransactionClick = { transaction ->
+                            transactionToEdit = transaction
+                            showSheet = true
+                        }
+                    )
+                }
+
+                composable("week_filter") {
+                    WeekFilterScreen(
+                        viewModel = viewModel,
+                        onTransactionClick = { transaction ->
+                            transactionToEdit = transaction
+                            showSheet = true
+                        }
+                    )
+                }
+
+                composable("month_filter") {
+                    MonthFilterScreen(
+                        viewModel = viewModel,
+                        onTransactionClick = { transaction ->
+                            transactionToEdit = transaction
+                            showSheet = true
+                        }
+                    )
+                }
+
+                composable("category_filter") {
+                    CategoryFilterScreen(
+                        viewModel = viewModel,
+                        onTransactionClick = { transaction ->
+                            transactionToEdit = transaction
+                            showSheet = true
+                        }
+                    )
+                }
+
+                composable(BottomNavItem.Settings.route) {
+                    ScreenContent("Settings Screen", Color(0xFFFFCCBC))
+                }
+
+                composable(BottomNavItem.Info.route) {
+                    ScreenContent("Info Screen", Color(0xFFFFAB91))
+                }
             }
         }
 
@@ -832,7 +1037,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
             AddTransactionBottomSheet(
                 onDismiss = {
                     showSheet = false
-                    // Clear the transaction being edited when dismissing
                     transactionToEdit = null
                 },
                 viewModel = viewModel,
