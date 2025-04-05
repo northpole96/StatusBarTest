@@ -31,14 +31,18 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Contrast
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -67,6 +71,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -271,7 +276,8 @@ fun isValidInput(input: String): Boolean {
 fun AddTransactionBottomSheet(
     onDismiss: () -> Unit,
     viewModel: TransactionViewModel,
-    transactionToEdit: Transaction? = null // Add this parameter to support editing
+    transactionToEdit: Transaction? = null,
+    categoryViewModel: CategoryViewModel
 ) {
     // Initialize state with values from the transaction to edit
     var input by remember {
@@ -308,10 +314,21 @@ fun AddTransactionBottomSheet(
     // Check if we're in edit mode
     val isEditMode = transactionToEdit != null
 
-    // Get categories based on transaction type
-    val expenseCategories = viewModel.expenseCategories
-    val incomeCategories = viewModel.incomeCategories
-    val categories = if (transactionType == "Expense") expenseCategories else incomeCategories
+    // Get categories from the CategoryViewModel based on transaction type
+    val categories by if (transactionType == "Expense")
+        categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
+    else
+        categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
+
+    val customCategories by if (transactionType == "Expense")
+        categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
+    else
+        categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+
+    // Combine default and custom categories
+    val allCategories = remember(categories, customCategories) {
+        (categories + customCategories).sortedBy { it.name }
+    }
 
     // Function to save the transaction
     val saveTransaction = {
@@ -401,9 +418,6 @@ fun AddTransactionBottomSheet(
                 }
             }
 
-            // The rest of the AddTransactionBottomSheet remains mostly the same
-            // Just continue with the existing implementation
-
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -443,7 +457,7 @@ fun AddTransactionBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Selection
+            // Category Selection with custom categories
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
@@ -458,12 +472,38 @@ fun AddTransactionBottomSheet(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Category,
-                            contentDescription = "Select Category",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        // Show category emoji and color if selected
+                        if (selectedCategory.isNotEmpty()) {
+                            val selectedCategoryObject = allCategories.find { it.name == selectedCategory }
+                            if (selectedCategoryObject != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(
+                                            selectedCategoryObject.displayColor(),
+                                            CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(selectedCategoryObject.emoji)
+                                }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Category,
+                                    contentDescription = "Select Category",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Category,
+                                contentDescription = "Select Category",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
                         Spacer(modifier = Modifier.width(16.dp))
+
                         Text(
                             text = if (selectedCategory.isEmpty()) "Select Category" else selectedCategory,
                             style = MaterialTheme.typography.bodyLarge
@@ -477,15 +517,60 @@ fun AddTransactionBottomSheet(
                             modifier = Modifier.fillMaxWidth(0.9f),
                             containerColor = MaterialTheme.colorScheme.surface
                         ) {
-                            categories.forEach { category ->
+                            allCategories.forEach { category ->
                                 DropdownMenuItem(
-                                    text = { Text(text = category) },
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .background(
+                                                        category.displayColor(),
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = category.emoji,
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            Text(text = category.name)
+                                        }
+                                    },
                                     onClick = {
-                                        selectedCategory = category
+                                        selectedCategory = category.name
                                         expandedCategory = false
                                     }
                                 )
                             }
+
+                            // Add "Manage Categories" option at the bottom
+                            Divider()
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = "Manage Categories",
+                                            tint = Color.Gray
+                                        )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Text("Manage Categories")
+                                    }
+                                },
+                                onClick = {
+                                    expandedCategory = false
+                                    // Ideally we would navigate to the category manager
+                                    // but we would need to inject NavController here
+                                    Toast.makeText(context, "Go to Settings > Manage Categories", Toast.LENGTH_SHORT).show()
+                                }
+                            )
                         }
                     }
                 }
@@ -721,7 +806,8 @@ fun TimePickerDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(window: Window, viewModel: TransactionViewModel) {
+fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewModel: CategoryViewModel)
+ {
     val navController = rememberNavController()
     val bottomNavItems = listOf(
         BottomNavItem.Home,
@@ -987,7 +1073,8 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         onTransactionClick = { transaction ->
                             transactionToEdit = transaction
                             showSheet = true
-                        }
+                        },
+                        categoryViewModel = categoryViewModel
                     )
                 }
 
@@ -997,7 +1084,8 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         onTransactionClick = { transaction ->
                             transactionToEdit = transaction
                             showSheet = true
-                        }
+                        },
+                        categoryViewModel = categoryViewModel
                     )
                 }
 
@@ -1007,7 +1095,8 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         onTransactionClick = { transaction ->
                             transactionToEdit = transaction
                             showSheet = true
-                        }
+                        },
+                        categoryViewModel = categoryViewModel
                     )
                 }
 
@@ -1017,7 +1106,8 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         onTransactionClick = { transaction ->
                             transactionToEdit = transaction
                             showSheet = true
-                        }
+                        },
+                        categoryViewModel = categoryViewModel
                     )
                 }
 
@@ -1027,16 +1117,25 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         onTransactionClick = { transaction ->
                             transactionToEdit = transaction
                             showSheet = true
-                        }
+                        },
+                        categoryViewModel = categoryViewModel
                     )
                 }
 
                 composable(BottomNavItem.Settings.route) {
-                    ScreenContent("Settings Screen", Color(0xFFFFCCBC))
+                    SettingsScreen(navController = navController, viewModel = viewModel)
                 }
 
                 composable(BottomNavItem.Info.route) {
                     ScreenContent("Info Screen", Color(0xFFFFAB91))
+                }
+
+                // Category manager route
+                composable("category_manager") {
+                    CategoryManagerScreen(
+                        navController = navController,
+                        viewModel = categoryViewModel
+                    )
                 }
             }
 
@@ -1047,10 +1146,219 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                         transactionToEdit = null
                     },
                     viewModel = viewModel,
-                    transactionToEdit = transactionToEdit
+                    transactionToEdit = transactionToEdit,
+                    categoryViewModel=categoryViewModel
                 )
             }
         }
+    }
+}
+
+
+@Composable
+fun SettingsScreen(
+    navController: NavController,
+    viewModel: TransactionViewModel
+) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Categories
+        SettingsItem(
+            icon = Icons.Default.Category,
+            title = "Manage Categories",
+            subtitle = "Create, edit, and organize your categories",
+            onClick = {
+                navController.navigate("category_manager")
+            }
+        )
+
+        Divider(
+            color = Color.LightGray.copy(alpha = 0.4f),
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+
+        // Theme toggle (placeholder)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.DarkMode,
+                contentDescription = "Dark Theme",
+                modifier = Modifier.size(24.dp),
+                tint = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Dark Theme",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = "Switch between light and dark mode",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
+
+            Switch(
+                checked = false,  // This would be connected to your theme state
+                onCheckedChange = { /* Toggle theme */ }
+            )
+        }
+
+        Divider(
+            color = Color.LightGray.copy(alpha = 0.4f),
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+
+        // Language (placeholder)
+        SettingsItem(
+            icon = Icons.Default.Language,
+            title = "Language",
+            subtitle = "Change app language",
+            onClick = { /* Open language selector */ }
+        )
+
+        Divider(
+            color = Color.LightGray.copy(alpha = 0.4f),
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+
+        // About
+        SettingsItem(
+            icon = Icons.Default.Info,
+            title = "About",
+            subtitle = "App information and version",
+            onClick = { /* Show about dialog */ }
+        )
+
+        Divider(
+            color = Color.LightGray.copy(alpha = 0.4f),
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Delete all data
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .clickable { showDeleteConfirmation = true },
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Red.copy(alpha = 0.1f)
+            ),
+            border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = "Delete All Data",
+                    tint = Color.Red
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "Delete All Transaction Data",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Red
+                )
+            }
+        }
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete All Data") },
+            text = { Text("Are you sure you want to delete all your transaction data? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Delete all transaction data
+                        viewModel.deleteAllTransactions()
+                        showDeleteConfirmation = false
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color.Red
+                    )
+                ) {
+                    Text("Delete All")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun SettingsItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            modifier = Modifier.size(24.dp),
+            tint = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = "Navigate",
+            tint = Color.Gray
+        )
     }
 }
 
@@ -1136,7 +1444,8 @@ fun FilterDropdown(
 @Composable
 fun CategoryFilterScreen(
     viewModel: TransactionViewModel,
-    onTransactionClick: (Transaction) -> Unit
+    onTransactionClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
@@ -1201,8 +1510,24 @@ fun CategoryFilterScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
             )
 
-            val specificCategories = if (selectedCategory == "Income")
-                viewModel.incomeCategories else viewModel.expenseCategories
+            // Get categories from categoryViewModel if available
+            val specificCategories = if (categoryViewModel != null) {
+                val categoriesFlow = if (selectedCategory == "Expense")
+                    categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
+                else
+                    categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
+
+                val customCategoriesFlow = if (selectedCategory == "Expense")
+                    categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
+                else
+                    categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+
+                (categoriesFlow.value + customCategoriesFlow.value).map { it.name }
+            } else {
+                // Fallback to the original categories
+                if (selectedCategory == "Income")
+                    viewModel.incomeCategories else viewModel.expenseCategories
+            }
 
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1223,12 +1548,34 @@ fun CategoryFilterScreen(
                 }
 
                 items(specificCategories) { category ->
+                    // If we have category data, show emoji
+                    val categoryObject = if (categoryViewModel != null) {
+                        val allCategories = if (selectedCategory == "Expense")
+                            categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList()).value +
+                                    categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList()).value
+                        else
+                            categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList()).value +
+                                    categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList()).value
+
+                        allCategories.find { it.name == category }
+                    } else null
+
                     FilterChip(
                         selected = vmSelectedCategory == category,
                         onClick = {
                             viewModel.setSelectedCategory(category)
                         },
-                        label = { Text(category) },
+                        label = {
+                            if (categoryObject != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(categoryObject.emoji)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(category)
+                                }
+                            } else {
+                                Text(category)
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color.Black,
                             selectedLabelColor = Color.White
@@ -1308,7 +1655,8 @@ fun CategoryFilterScreen(
                 items(filteredTransactions) { transaction ->
                     TransactionItem(
                         transaction = transaction,
-                        onItemClick = onTransactionClick
+                        onItemClick = onTransactionClick,
+                        categoryViewModel = categoryViewModel
                     )
                     Divider()
                 }
@@ -1321,7 +1669,8 @@ fun CategoryFilterScreen(
 @Composable
 fun DayFilterScreen(
     viewModel: TransactionViewModel,
-    onTransactionClick: (Transaction) -> Unit
+    onTransactionClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null
 ) {
     val currentDay by viewModel.currentDate.collectAsState(initial = LocalDate.now())
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
@@ -1381,7 +1730,8 @@ fun DayFilterScreen(
                 items(filteredTransactions) { transaction ->
                     TransactionItem(
                         transaction = transaction,
-                        onItemClick = onTransactionClick
+                        onItemClick = onTransactionClick,
+                        categoryViewModel = categoryViewModel
                     )
                     Divider()
                 }
@@ -1393,7 +1743,8 @@ fun DayFilterScreen(
 @Composable
 fun WeekFilterScreen(
     viewModel: TransactionViewModel,
-    onTransactionClick: (Transaction) -> Unit
+    onTransactionClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null
 ) {
     val currentWeekStart by viewModel.currentWeekStart.collectAsState(initial = LocalDate.now().minusDays(LocalDate.now().dayOfWeek.value.toLong() - 1))
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
@@ -1453,7 +1804,8 @@ fun WeekFilterScreen(
                 items(filteredTransactions) { transaction ->
                     TransactionItem(
                         transaction = transaction,
-                        onItemClick = onTransactionClick
+                        onItemClick = onTransactionClick,
+                        categoryViewModel = categoryViewModel
                     )
                     Divider()
                 }
@@ -1465,7 +1817,8 @@ fun WeekFilterScreen(
 @Composable
 fun MonthFilterScreen(
     viewModel: TransactionViewModel,
-    onTransactionClick: (Transaction) -> Unit
+    onTransactionClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null
 ) {
     val currentMonth by viewModel.currentMonth.collectAsState(initial = YearMonth.now())
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
@@ -1604,7 +1957,8 @@ fun MonthFilterScreen(
                 items(filteredTransactions) { transaction ->
                     TransactionItem(
                         transaction = transaction,
-                        onItemClick = onTransactionClick
+                        onItemClick = onTransactionClick,
+                        categoryViewModel = categoryViewModel
                     )
                     Divider()
                 }
@@ -1620,7 +1974,8 @@ fun MonthFilterScreen(
 @Composable
 fun TransactionListScreen(
     viewModel: TransactionViewModel,
-    onTransactionClick: (Transaction) -> Unit
+    onTransactionClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null
 ) {
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
     val currentDay = LocalDate.now()
@@ -1673,7 +2028,8 @@ fun TransactionListScreen(
                 items(filteredTransactions) { transaction ->
                     TransactionItem(
                         transaction = transaction,
-                        onItemClick = onTransactionClick
+                        onItemClick = onTransactionClick,
+                        categoryViewModel = categoryViewModel
                     )
                     Divider()
                 }
@@ -1684,7 +2040,8 @@ fun TransactionListScreen(
 @Composable
 fun TransactionItem(
     transaction: Transaction,
-    onItemClick: (Transaction) -> Unit
+    onItemClick: (Transaction) -> Unit,
+    categoryViewModel: CategoryViewModel? = null // Optional ViewModel to get category details
 ) {
     val amountColor = if (transaction.type == "Income") Color.Green else Color.Black
     val amountPrefix = if (transaction.type == "Income") "+" else "-"
@@ -1700,6 +2057,37 @@ fun TransactionItem(
 
     var expanded by remember { mutableStateOf(false) }
 
+    // Get category info if the ViewModel is provided
+    val categoriesFlow = if (categoryViewModel != null && transaction.type == "Expense")
+        categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
+    else if (categoryViewModel != null)
+        categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
+    else null
+
+    val customCategoriesFlow = if (categoryViewModel != null && transaction.type == "Expense")
+        categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
+    else if (categoryViewModel != null)
+        categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+    else null
+
+    // Get the category object if possible
+//    val categoryObject = if (categoriesFlow != null && customCategoriesFlow != null) {
+//        val allCats = categoriesFlow.value + customCategoriesFlow.value
+//        allCats.find { it.name == transaction.category }
+//    } else null
+
+    // Determine the color to use for the category indicator
+    val categoryColor= Color.Gray
+//    val categoryColor = categoryObject?.let {
+//        try {
+//            Color(android.graphics.Color.parseColor(it.colorHex))
+//        } catch (e: Exception) {
+//            getCategoryColor(transaction.category) // Fallback to the old method
+//        }
+//    } ?: getCategoryColor(transaction.category)
+
+//    val categoryEmoji = categoryObject?.emoji ?: ""
+val categoryEmoji=""
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1709,7 +2097,6 @@ fun TransactionItem(
                 onItemClick(transaction)
             }
     ) {
-        // Rest of the TransactionItem code remains the same
         // Main transaction row
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1718,12 +2105,30 @@ fun TransactionItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Category indicator
-                    Surface(
-                        shape = CircleShape,
-                        color = getCategoryColor(transaction.category),
-                        modifier = Modifier.size(12.dp)
-                    ) {}
+                    // Category indicator with emoji if available
+                    if (categoryEmoji.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(
+                                    color = categoryColor,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = categoryEmoji,
+                                fontSize = 16.sp
+                            )
+                        }
+                    } else {
+                        // Fall back to the colored circle if no emoji
+                        Surface(
+                            shape = CircleShape,
+                            color = categoryColor,
+                            modifier = Modifier.size(12.dp)
+                        ) {}
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
@@ -1750,8 +2155,7 @@ fun TransactionItem(
             )
         }
 
-        // Expanded details section - We could keep this for a detailed view
-        // or remove it since we now navigate to edit screen on click
+        // Expanded details section (when tapped)
         AnimatedVisibility(visible = expanded) {
             Column(
                 modifier = Modifier
@@ -1948,6 +2352,8 @@ fun SpentSummary(
 
 class MainActivity : ComponentActivity() {
     private lateinit var transactionViewModel: TransactionViewModel
+    private lateinit var categoryViewModel: CategoryViewModel
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1955,10 +2361,11 @@ class MainActivity : ComponentActivity() {
 
         // Initialize ViewModel
         transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
+        categoryViewModel = ViewModelProvider(this)[CategoryViewModel::class.java]
 
         setContent {
             StatusBarTestTheme {
-                MainScreen(window, transactionViewModel)
+                MainScreen(window, transactionViewModel,categoryViewModel)
             }
         }
     }

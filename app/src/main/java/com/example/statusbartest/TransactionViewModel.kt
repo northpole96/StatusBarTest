@@ -60,7 +60,9 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun setSelectedCategory(category: String) {
         _selectedCategory.value = category
     }
-
+    fun deleteAllTransactions() = viewModelScope.launch(Dispatchers.IO) {
+        repository.deleteAll()
+    }
     fun filterTransactions(
         transactions: List<Transaction>,
         type: FilterType,
