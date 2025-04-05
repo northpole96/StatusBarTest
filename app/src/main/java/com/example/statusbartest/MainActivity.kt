@@ -2032,7 +2032,7 @@ fun TransactionListScreen(
                         onItemClick = onTransactionClick,
                         categoryViewModel = categoryViewModel
                     )
-                    Divider()
+//                    HorizontalDivider(thi
                 }
             }
         }
@@ -2166,17 +2166,19 @@ fun TransactionItem(
                 // Category indicator (Emoji or Circle)
                 Box(
                     modifier = Modifier
-                        .size(32.dp) // Consistent size
-                        .background(
-                            color = categoryColor,
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .size(48.dp) // Consistent size
+//                        .border(width = 1.5.dp,color= Color.Black, shape = RoundedCornerShape(12.dp))
+//                        .background(
+//                            color = categoryColor,
+//                            shape = RoundedCornerShape(12.dp)
+//                        )
+//
+                    ,contentAlignment = Alignment.Center
                 ) {
                     if (categoryEmoji.isNotEmpty()) {
                         Text(
                             text = categoryEmoji,
-                            fontSize = 16.sp // Adjust size as needed
+                            fontSize = 24.sp // Adjust size as needed
                         )
                     }
                     // If no emoji, the colored background serves as the indicator

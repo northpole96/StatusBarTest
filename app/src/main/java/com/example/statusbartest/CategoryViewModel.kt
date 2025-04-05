@@ -28,6 +28,58 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     // For the category add/edit sheet
     private val _selectedCategoryType = MutableStateFlow("Expense")
     val selectedCategoryType: StateFlow<String> = _selectedCategoryType.asStateFlow()
+    val IceBlue = Color(0xFFA9D6E5)
+    val PowderBlue = Color(0xFFB0E0E6)
+    val MintGreen = Color(0xFF98FF98)
+    val CoolAqua = Color(0xFF7FDBFF)
+    val SkyBlue = Color(0xFF87CEEB)
+    val ArcticBlue = Color(0xFFD0F0FD)
+    val SeafoamGreen = Color(0xFF9FE2BF)
+    val PaleTurquoise = Color(0xFFAFEEEE)
+    val Teal = Color(0xFF008080)
+    val CadetBlue = Color(0xFF5F9EA0)
+    val Periwinkle = Color(0xFFCCCCFF)
+    val LavenderBlue = Color(0xFFE3E4FA)
+    val SlateBlue = Color(0xFF6A5ACD)
+    val SteelBlue = Color(0xFF4682B4)
+    val Indigo = Color(0xFF4B0082)
+    val MidnightBlue = Color(0xFF191970)
+
+    // Pastel Colors
+    val PastelPink = Color(0xFFFFD1DC)
+    val BabyBlue = Color(0xFFBFEFFF)
+    val MintCream = Color(0xFFF5FFFA)
+    val PaleLavender = Color(0xFFE6E6FA)
+    val PeachPuff = Color(0xFFFFDAB9)
+    val LightRose = Color(0xFFFADADD)
+    val PaleAqua = Color(0xFFBCD4E6)
+    val PastelYellow = Color(0xFFFFFFCC)
+    val LightLilac = Color(0xFFD8B7DD)
+    val PastelGreen = Color(0xFFC1E1C1)
+    val LightCoral = Color(0xFFF08080)
+    val PowderPink = Color(0xFFF8C8DC)
+    val PaleOrange = Color(0xFFFFE5B4)
+    val SkyMist = Color(0xFFC9FFE5)
+    val CottonCandy = Color(0xFFFFBCD9)
+    val BabyPurple = Color(0xFFD6CDEA)
+
+    // Warm Colors
+    val ScarletRed = Color(0xFFFF2400)
+    val Tomato = Color(0xFFFF6347)
+    val Coral = Color(0xFFFF7F50)
+    val OrangeRed = Color(0xFFFF4500)
+    val WarmYellow = Color(0xFFFFD700)
+    val Amber = Color(0xFFFFBF00)
+    val BurntOrange = Color(0xFFCC5500)
+    val Goldenrod = Color(0xFFDAA520)
+    val Firebrick = Color(0xFFB22222)
+    val Marigold = Color(0xFFF4C430)
+    val Persimmon = Color(0xFFEC5800)
+    val Saffron = Color(0xFFF4C430)
+    val BrickRed = Color(0xFFCB4154)
+    val Tangerine = Color(0xFFF28500)
+    val Crimson = Color(0xFFDC143C)
+    val SunsetOrange = Color(0xFFFD5E53)
 
     // Predefined colors for categories
     val predefinedColors = listOf(
@@ -59,10 +111,10 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
     // Default categories that come with the app
     private val defaultExpenseCategories = listOf(
-        Category(name = "Food", emoji = "🍔", colorHex = "#F44336", type = "Expense", isDefault = true),
-        Category(name = "Transport", emoji = "🚗", colorHex = "#2196F3", type = "Expense", isDefault = true),
-        Category(name = "Shopping", emoji = "🛒", colorHex = "#E91E63", type = "Expense", isDefault = true),
-        Category(name = "Bills", emoji = "🧾", colorHex = "#4CAF50", type = "Expense", isDefault = true),
+        Category(name = "Food", emoji = "🍔", colorHex = "#FFD8B7DD", type = "Expense", isDefault = true),
+        Category(name = "Transport", emoji = "🚗", colorHex = "#FFF8C8DC", type = "Expense", isDefault = true),
+        Category(name = "Shopping", emoji = "🛒", colorHex = "#FFC1E1C1", type = "Expense", isDefault = true),
+        Category(name = "Bills", emoji = "🧾", colorHex = "#FFF28500", type = "Expense", isDefault = true),
         Category(name = "Health", emoji = "💊", colorHex = "#00BCD4", type = "Expense", isDefault = true),
         Category(name = "Other", emoji = "📦", colorHex = "#9E9E9E", type = "Expense", isDefault = true)
     )
