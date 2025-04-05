@@ -729,9 +729,9 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
         BottomNavItem.Settings,
         BottomNavItem.Info
     )
-
+    val focusRequester = remember { FocusRequester() }
     var showSheet by remember { mutableStateOf(false) }
-    var showSearchSheet by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
@@ -753,19 +753,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 currentRoute == "category_filter"
     }
 
-    // Filtered transactions based on search query
-    val searchFilteredTransactions = remember(searchQuery, transactions) {
-        if (searchQuery.isEmpty()) {
-            transactions
-        } else {
-            transactions.filter { transaction ->
-                transaction.category.contains(searchQuery, ignoreCase = true) ||
-                        transaction.notes.contains(searchQuery, ignoreCase = true) ||
-                        transaction.amount.toString().contains(searchQuery)
-            }
-        }
-    }
-
     // Update filter name when filter type changes
     LaunchedEffect(currentFilterType) {
         currentFilterName = when(currentFilterType) {
@@ -781,118 +768,191 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
-                Column {
-                    TopAppBar(
-                        title = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Left - Search icon (only on transaction screens)
-                                if (isTransactionScreen) {
-                                    IconButton(onClick = { showSearchSheet = true }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Search,
-                                            contentDescription = "Search"
+                if (showSearch) {
+                    // Search TopBar
+                    SearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        onSearch = { /* Handle search */ },
+                        active = true,
+                        onActiveChange = { active ->
+                            showSearch = active
+                            if (!active) {
+                                searchQuery = "" // Reset search text when closing via other means
+                            }
+                        },
+                        placeholder = { Text("Search transactions...") },
+                        leadingIcon = {
+                            IconButton(onClick = {
+                                showSearch = false
+                                searchQuery=""
+                            }) {
+                                Icon(Icons.Default.ArrowBack, "Back")
+                            }
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Default.Clear, "Clear")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                    ) {
+                        // Search results
+                        if (searchQuery.isNotEmpty()) {
+                            val filteredResults = transactions.filter {
+                                it.category.contains(searchQuery, ignoreCase = true) ||
+                                        it.notes.contains(searchQuery, ignoreCase = true) ||
+                                        it.amount.toString().contains(searchQuery)
+                            }
+
+                            if (filteredResults.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No results found")
+                                }
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                    items(filteredResults) { transaction ->
+                                        TransactionItem(
+                                            transaction = transaction,
+                                            onItemClick = {
+                                                transactionToEdit = transaction
+                                                showSheet = true
+                                                showSearch = false
+                                                searchQuery=""
+                                            }
                                         )
                                     }
-                                } else {
-                                    // Empty spacer for other screens
-                                    Spacer(modifier = Modifier.width(48.dp))
-                                }
-
-                                // Middle - Title or filter chips
-                                if (currentFilterType != FilterType.ALL && isTransactionScreen) {
-                                    // Show filter chip for transaction screens with active filter
-                                    FilterChip(
-                                        selected = true,
-                                        onClick = {
-                                            viewModel.setFilterType(FilterType.ALL)
-                                            navController.navigate(BottomNavItem.Home.route)
-                                        },
-                                        label = { Text(currentFilterName) },
-                                        trailingIcon = {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = "Clear filter",
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color.Black,
-                                            selectedLabelColor = Color.White,
-                                            selectedTrailingIconColor = Color.White
-                                        )
-                                    )
-                                } else {
-                                    // Show appropriate title based on screen
-                                    Text(
-                                        when (currentRoute) {
-                                            BottomNavItem.Home.route -> "Transaction Manager"
-                                            BottomNavItem.Settings.route -> "Settings"
-                                            BottomNavItem.Info.route -> "Information"
-                                            "day_filter" -> "Daily Transactions"
-                                            "week_filter" -> "Weekly Transactions"
-                                            "month_filter" -> "Monthly Transactions"
-                                            "category_filter" -> "Category Transactions"
-                                            else -> "Transaction Manager"
-                                        },
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-
-                                // Right - Filter dropdown (only on transaction screens)
-                                if (isTransactionScreen) {
-                                    FilterDropdown(
-                                        context = context,
-                                        navController = navController,
-                                        viewModel = viewModel
-                                    )
-                                } else {
-                                    // Empty spacer for other screens
-                                    Spacer(modifier = Modifier.width(48.dp))
                                 }
                             }
                         }
-                    )
+                    }
+                    LaunchedEffect(showSearch) {
+                        if (showSearch) {
+                            focusRequester.requestFocus()
+                        }
+                    }
+                } else {
+                    // Regular TopBar
+                    Column {
+                        TopAppBar(
+                            title = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Left - Search icon (only on transaction screens)
+                                    if (isTransactionScreen) {
+                                        IconButton(onClick = { showSearch = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = "Search"
+                                            )
+                                        }
+                                    } else {
+                                        // Empty spacer for other screens
+                                        Spacer(modifier = Modifier.width(48.dp))
+                                    }
 
-                    // Category filter chip - only on transaction screens with active category filter
-                    val selectedCategory by viewModel.selectedCategory.collectAsState(initial = "All")
-                    AnimatedVisibility(
-                        visible = isTransactionScreen &&
-                                currentFilterType == FilterType.CATEGORY &&
-                                selectedCategory != "All" &&
-                                selectedCategory != "Income" &&
-                                selectedCategory != "Expense"
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.Center
+                                    // Middle - Title or filter chips
+                                    if (currentFilterType != FilterType.ALL && isTransactionScreen) {
+                                        // Show filter chip for transaction screens with active filter
+                                        FilterChip(
+                                            selected = true,
+                                            onClick = {
+                                                viewModel.setFilterType(FilterType.ALL)
+                                                navController.navigate(BottomNavItem.Home.route)
+                                            },
+                                            label = { Text(currentFilterName) },
+                                            trailingIcon = {
+                                                Icon(
+                                                    Icons.Default.Clear,
+                                                    contentDescription = "Clear filter",
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = Color.Black,
+                                                selectedLabelColor = Color.White,
+                                                selectedTrailingIconColor = Color.White
+                                            )
+                                        )
+                                    } else {
+                                        // Show appropriate title based on screen
+                                        Text(
+                                            when (currentRoute) {
+                                                BottomNavItem.Home.route -> "Transaction Manager"
+                                                BottomNavItem.Settings.route -> "Settings"
+                                                BottomNavItem.Info.route -> "Information"
+                                                "day_filter" -> "Daily Transactions"
+                                                "week_filter" -> "Weekly Transactions"
+                                                "month_filter" -> "Monthly Transactions"
+                                                "category_filter" -> "Category Transactions"
+                                                else -> "Transaction Manager"
+                                            },
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+
+                                    // Right - Filter dropdown (only on transaction screens)
+                                    if (isTransactionScreen) {
+                                        FilterDropdown(
+                                            context = context,
+                                            navController = navController,
+                                            viewModel = viewModel
+                                        )
+                                    } else {
+                                        // Empty spacer for other screens
+                                        Spacer(modifier = Modifier.width(48.dp))
+                                    }
+                                }
+                            }
+                        )
+
+                        // Category filter chip
+                        val selectedCategory by viewModel.selectedCategory.collectAsState(initial = "All")
+                        AnimatedVisibility(
+                            visible = isTransactionScreen &&
+                                    currentFilterType == FilterType.CATEGORY &&
+                                    selectedCategory != "All" &&
+                                    selectedCategory != "Income" &&
+                                    selectedCategory != "Expense"
                         ) {
-                            FilterChip(
-                                selected = true,
-                                onClick = {
-                                    val parentCategory = if (viewModel.incomeCategories.contains(selectedCategory))
-                                        "Income" else "Expense"
-                                    viewModel.setSelectedCategory(parentCategory)
-                                },
-                                label = { Text("Category: $selectedCategory") },
-                                trailingIcon = {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "Clear category filter",
-                                        modifier = Modifier.size(18.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                FilterChip(
+                                    selected = true,
+                                    onClick = {
+                                        val parentCategory = if (viewModel.incomeCategories.contains(selectedCategory))
+                                            "Income" else "Expense"
+                                        viewModel.setSelectedCategory(parentCategory)
+                                    },
+                                    label = { Text("Category: $selectedCategory") },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Clear category filter",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color.Black,
+                                        selectedLabelColor = Color.White,
+                                        selectedTrailingIconColor = Color.White
                                     )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color.Black,
-                                    selectedLabelColor = Color.White,
-                                    selectedTrailingIconColor = Color.White
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -915,13 +975,11 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 }
             }
         ) { padding ->
-            // Regular navigation content
             NavHost(
                 navController = navController,
                 startDestination = BottomNavItem.Home.route,
                 modifier = Modifier.padding(padding)
             ) {
-                // Your existing composables
                 composable(BottomNavItem.Home.route) {
                     TransactionListScreen(
                         viewModel = viewModel,
@@ -932,7 +990,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                     )
                 }
 
-                // Other composables remain the same
                 composable("day_filter") {
                     DayFilterScreen(
                         viewModel = viewModel,
@@ -982,7 +1039,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                 }
             }
 
-            // Add Transaction Bottom Sheet
             if (showSheet) {
                 AddTransactionBottomSheet(
                     onDismiss = {
@@ -991,30 +1047,6 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel) {
                     },
                     viewModel = viewModel,
                     transactionToEdit = transactionToEdit
-                )
-            }
-        }
-
-        // Full Screen Search Sheet - placed outside the Scaffold to ensure it's on top
-        if (showSearchSheet) {
-            // Full screen overlay with search content
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                SearchScreen(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it },
-                    onDismiss = {
-                        showSearchSheet = false
-                        searchQuery = ""
-                    },
-                    transactions = searchFilteredTransactions,
-                    onTransactionClick = { transaction ->
-                        transactionToEdit = transaction
-                        showSheet = true
-                        showSearchSheet = false
-                    }
                 )
             }
         }
