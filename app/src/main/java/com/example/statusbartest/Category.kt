@@ -584,7 +584,8 @@ fun CategoryBottomSheet(
                 selectedEmoji = emoji
                 showEmojiPicker = false
             },
-            onDismiss = { showEmojiPicker = false }
+            onDismiss = { showEmojiPicker = false },
+            selectedColor = selectedColor
         )
     }
 }
@@ -672,48 +673,13 @@ fun ColorItem(
 fun EmojiPickerDialog(
     emojis: List<String>,
     onEmojiSelected: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    selectedColor: String = "#FF000000" // Default black color
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Icon") },
-        text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-            ) {
-                val rows = emojis.chunked(6)
-                items(rows) { row ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        row.forEach { emoji ->
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onEmojiSelected(emoji) }
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = emoji,
-                                    fontSize = 20.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
+    // Use our enhanced emoji picker that leverages the system keyboard
+    EnhancedEmojiPicker(
+        onEmojiSelected = onEmojiSelected,
+        onDismiss = onDismiss,
+        selectedColor = selectedColor
     )
 }

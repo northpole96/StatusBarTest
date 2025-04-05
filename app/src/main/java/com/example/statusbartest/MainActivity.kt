@@ -976,7 +976,7 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewMode
                                         // Show appropriate title based on screen
                                         Text(
                                             when (currentRoute) {
-                                                BottomNavItem.Home.route -> "Transaction Manager"
+                                                BottomNavItem.Home.route -> ""
                                                 BottomNavItem.Settings.route -> "Settings"
                                                 BottomNavItem.Info.route -> "Information"
                                                 "day_filter" -> "Daily Transactions"
@@ -1969,9 +1969,6 @@ fun MonthFilterScreen(
 }
 
 
-
-
-
 @Composable
 fun TransactionListScreen(
     viewModel: TransactionViewModel,
@@ -1994,6 +1991,35 @@ fun TransactionListScreen(
         selectedCategory
     )
 
+    // Group transactions by date
+    val groupedTransactions = remember(filteredTransactions) {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+
+        // Sort transactions in descending order by date (newest first)
+        val sortedTransactions = filteredTransactions.sortedByDescending {
+            try {
+                LocalDate.parse(it.date)
+            } catch (e: Exception) {
+                LocalDate.now() // Fallback for unparseable dates
+            }
+        }
+
+        // Group by date sections
+        sortedTransactions.groupBy { transaction ->
+            try {
+                val transactionDate = LocalDate.parse(transaction.date)
+                when {
+                    transactionDate.isEqual(today) -> "Today"
+                    transactionDate.isEqual(yesterday) -> "Yesterday"
+                    else -> transactionDate.format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                }
+            } catch (e: Exception) {
+                "Unknown Date"
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2005,11 +2031,11 @@ fun TransactionListScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Transactions Title
-        Text(
-            text = "Transaction History",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+//        Text(
+//            text = "Transaction History",
+//            style = MaterialTheme.typography.headlineMedium,
+//            modifier = Modifier.padding(bottom = 16.dp)
+//        )
 
         // Transactions List
         if (filteredTransactions.isEmpty()) {
@@ -2026,18 +2052,46 @@ fun TransactionListScreen(
             }
         } else {
             LazyColumn {
-                items(filteredTransactions) { transaction ->
-                    TransactionItem(
-                        transaction = transaction,
-                        onItemClick = onTransactionClick,
-                        categoryViewModel = categoryViewModel
-                    )
-//                    HorizontalDivider(thi
+
+                groupedTransactions.forEach { (dateGroup, transactionsInGroup) ->
+                    // Date header
+                    item {
+                        Column (
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp, horizontal = 12.dp),
+                        ) {
+                            Text(
+                                text = dateGroup,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.Gray
+                            )
+
+        Spacer(Modifier.height(4.dp))
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = Color.LightGray.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+
+                    // Transactions for this date group
+                    items(transactionsInGroup) { transaction ->
+                        TransactionItem(
+                            transaction = transaction,
+                            onItemClick = onTransactionClick,
+                            categoryViewModel = categoryViewModel
+                        )
+//                        Divider()
+                    }
                 }
             }
         }
     }
 }
+
+
+
 @Composable
 fun TransactionItem(
     transaction: Transaction, // Assuming Transaction data class is defined and imported
@@ -2168,10 +2222,10 @@ fun TransactionItem(
                     modifier = Modifier
                         .size(48.dp) // Consistent size
 //                        .border(width = 1.5.dp,color= Color.Black, shape = RoundedCornerShape(12.dp))
-//                        .background(
-//                            color = categoryColor,
-//                            shape = RoundedCornerShape(12.dp)
-//                        )
+                        .background(
+                            color = categoryColor.copy(0.4f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
 //
                     ,contentAlignment = Alignment.Center
                 ) {
@@ -2215,8 +2269,8 @@ fun TransactionItem(
         // Removed the AnimatedVisibility section as per the comment in the original code
         // If you want expansion, re-add AnimatedVisibility and toggle a state in the clickable lambda.
     }
-
-    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)) // Use theme color for divider
+//HorizontalDivider(thickness = 0.dp)
+//    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)) // Use theme color for divider
 }
 
 
