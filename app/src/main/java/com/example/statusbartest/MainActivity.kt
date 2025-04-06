@@ -3,6 +3,7 @@ package com.example.statusbartest
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.compose.material.icons.filled.Analytics
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
@@ -102,7 +103,7 @@ sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: 
     object Search : BottomNavItem("search", Icons.Default.Search, "Search")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profile")
     object Settings : BottomNavItem("settings", Icons.Default.Settings, "Settings")
-    object Info : BottomNavItem("info", Icons.Default.Info, "Info")
+    object Insights : BottomNavItem("insights", Icons.Default.Analytics, "Insights")
 }
 
 
@@ -814,7 +815,7 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewMode
         BottomNavItem.Home,
         BottomNavItem.Profile,
         BottomNavItem.Settings,
-        BottomNavItem.Info
+        BottomNavItem.Insights
     )
     val focusRequester = remember { FocusRequester() }
     var showSheet by remember { mutableStateOf(false) }
@@ -978,7 +979,7 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewMode
                                             when (currentRoute) {
                                                 BottomNavItem.Home.route -> ""
                                                 BottomNavItem.Settings.route -> "Settings"
-                                                BottomNavItem.Info.route -> "Information"
+                                                BottomNavItem.Insights.route -> "Insights"
                                                 "day_filter" -> "Daily Transactions"
                                                 "week_filter" -> "Weekly Transactions"
                                                 "month_filter" -> "Monthly Transactions"
@@ -1127,9 +1128,9 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewMode
                     SettingsScreen(navController = navController, viewModel = viewModel)
                 }
 
-                composable(BottomNavItem.Info.route) {
-                    ScreenContent("Info Screen", Color(0xFFFFAB91))
-                }
+//                composable(BottomNavItem.Info.route) {
+//                    ScreenContent("Info Screen", Color(0xFFFFAB91))
+//                }
 
                 // Category manager route
                 composable("category_manager") {
@@ -1137,6 +1138,9 @@ fun MainScreen(window: Window, viewModel: TransactionViewModel ,categoryViewMode
                         navController = navController,
                         viewModel = categoryViewModel
                     )
+                }
+                composable(BottomNavItem.Insights.route) {
+                    InsightsScreen(viewModel = viewModel, categoryViewModel = categoryViewModel)
                 }
             }
 
