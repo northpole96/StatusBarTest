@@ -25,12 +25,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -48,14 +51,19 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -99,30 +107,46 @@ enum class InsightTimeFrame {
 fun InsightsScreen(
     viewModel: TransactionViewModel, categoryViewModel: CategoryViewModel
 ) {
+    var selectedTimePeriod by remember { mutableStateOf("Month") }
 
-    Box(Modifier.fillMaxSize()) {
-//        Scaffold(
-//            topBar = {
-//                Column {
-//                    TopAppBar(
-//                        title = {
-//                            Row(
-//                                Modifier
-//                                    .fillMaxWidth()
-//                            ) { Text("Insights") }
-//
-//                        }, colors = TopAppBarDefaults.topAppBarColors(Color.Red)
-//
-//                    )
-//                }
-//            }
-//        )
-//
-//        {
-//
-//        }
+
+
+    Scaffold(
+//        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            Column {
+                TopAppBar(
+
+                    title = {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                        ) { Text("Insights") }
+
+                    },
+                    actions = {
+                        InsightsTimePeriodDropdown(
+                            selectedTimePeriod = selectedTimePeriod,
+                            onTimePeriodSelected = { selectedTimePeriod = it }
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(Color.White),
+                    windowInsets = WindowInsets(0)
+                )
+            }
+        },
+
+        )
+
+    { paddingValues ->
+        Column() {
+
+
+        }
+
     }
 }
+
 
 @Composable
 fun InsightsTimePeriodDropdown(
@@ -146,7 +170,8 @@ fun InsightsTimePeriodDropdown(
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             timePeriods.forEach { period ->
                 DropdownMenuItem(
@@ -154,8 +179,9 @@ fun InsightsTimePeriodDropdown(
                     onClick = {
                         onTimePeriodSelected(period)
                         expanded = false
-                    }
-                )
+                    },
+
+                    )
             }
         }
     }

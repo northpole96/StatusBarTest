@@ -525,8 +525,10 @@ fun AddTransactionBottomSheet(
                         Spacer(modifier = Modifier.width(16.dp))
 
                         Text(
+
                             text = if (selectedCategory.isEmpty()) "Select Category" else selectedCategory,
                             style = MaterialTheme.typography.bodyLarge
+                            
                         )
                     }
 
@@ -956,18 +958,7 @@ fun MainScreen(
                         }
                     }
                 } else if (currentRoute == BottomNavItem.Insights.route) {
-                    Column {
-                        TopAppBar(
-                            title = {
-                                Row(
-                                    Modifier
-                                        .fillMaxWidth()
-                                ) { Text("Insights") }
-
-                            }, colors = TopAppBarDefaults.topAppBarColors(Color.Red)
-
-                        )
-                    }
+                    null
                 } else {
                     // Regular TopBar
                     Column {
