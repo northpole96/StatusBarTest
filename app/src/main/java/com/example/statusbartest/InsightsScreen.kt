@@ -286,6 +286,7 @@ fun InsightsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0),
                 title = { Text("Insights") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
                 actions = {
