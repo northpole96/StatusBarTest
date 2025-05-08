@@ -2065,18 +2065,6 @@ fun TransactionListScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Spending Summary
-        SpentSummary(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Transactions Title
-//        Text(
-//            text = "Transaction History",
-//            style = MaterialTheme.typography.headlineMedium,
-//            modifier = Modifier.padding(bottom = 16.dp)
-//        )
-
         // Transactions List
         if (filteredTransactions.isEmpty()) {
             Box(
@@ -2092,6 +2080,11 @@ fun TransactionListScreen(
             }
         } else {
             LazyColumn {
+                // Add the Spending Summary as the first item
+                item {
+                    SpentSummary(viewModel)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 groupedTransactions.forEach { (dateGroup, transactionsInGroup) ->
                     // Date header
