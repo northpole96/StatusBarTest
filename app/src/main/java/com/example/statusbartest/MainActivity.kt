@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -71,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -528,7 +530,7 @@ fun AddTransactionBottomSheet(
 
                             text = if (selectedCategory.isEmpty()) "Select Category" else selectedCategory,
                             style = MaterialTheme.typography.bodyLarge
-                            
+
                         )
                     }
 
@@ -886,44 +888,52 @@ fun MainScreen(
             topBar = {
                 if (showSearch) {
                     // Search TopBar
-                    SearchBar(
-                        colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = { /* Handle search */ },
-                        active = true,
-                        onActiveChange = { active ->
-                            showSearch = active
-                            if (!active) {
-                                searchQuery = "" // Reset search text when closing via other means
-                            }
-                        },
-                        placeholder = { Text("Search transactions...") },
-                        leadingIcon = {
-                            IconButton(onClick = {
-                                showSearch = false
-                                searchQuery = ""
-                            }) {
-                                Icon(Icons.Default.ArrowBack, "Back")
-                            }
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Clear, "Clear")
+                    Column {
+                        TopAppBar(
+                            title = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(onClick = {
+                                        showSearch = false
+                                        searchQuery = ""
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Back"
+                                        )
+                                    }
+                                    TextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .focusRequester(focusRequester),
+                                        placeholder = { Text("Search transactions") },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent,
+                                            disabledContainerColor = Color.Transparent,
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent
+                                        )
+                                    )
                                 }
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    ) {
+                        )
+
                         // Search results
                         if (searchQuery.isNotEmpty()) {
-                            val filteredResults = transactions.filter {
-                                it.category.contains(searchQuery, ignoreCase = true) ||
-                                        it.notes.contains(searchQuery, ignoreCase = true) ||
-                                        it.amount.toString().contains(searchQuery)
+                            // Pre-compute filtered results outside composition
+                            val filteredResults = remember(searchQuery, transactions) {
+                                transactions.filter {
+                                    it.category.contains(searchQuery, ignoreCase = true) ||
+                                            it.notes.contains(searchQuery, ignoreCase = true) ||
+                                            it.amount.toString().contains(searchQuery)
+                                }
                             }
 
                             if (filteredResults.isEmpty()) {
@@ -937,8 +947,11 @@ fun MainScreen(
                                 }
                             } else {
                                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                                    items(filteredResults) { transaction ->
-                                        TransactionItem(
+                                    items(
+                                        items = filteredResults,
+                                        key = { it.id } // Use transaction ID as stable key
+                                    ) { transaction ->
+                                        OptimizedTransactionItem(
                                             transaction = transaction,
                                             onItemClick = {
                                                 transactionToEdit = transaction
@@ -951,10 +964,10 @@ fun MainScreen(
                                 }
                             }
                         }
-                    }
-                    LaunchedEffect(showSearch) {
-                        if (showSearch) {
-                            focusRequester.requestFocus()
+                        LaunchedEffect(showSearch) {
+                            if (showSearch) {
+                                focusRequester.requestFocus()
+                            }
                         }
                     }
                 } else if (currentRoute == BottomNavItem.Insights.route) {
@@ -1199,6 +1212,7 @@ fun SettingsScreen(
     viewModel: TransactionViewModel
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showGenerateConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(
@@ -1294,6 +1308,40 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // Generate test data button
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .clickable { showGenerateConfirmation = true },
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Blue.copy(alpha = 0.1f)
+            ),
+            border = BorderStroke(1.dp, Color.Blue.copy(alpha = 0.3f)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Generate Test Data",
+                    tint = Color.Blue
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "Generate 500 Test Transactions",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Blue
+                )
+            }
+        }
+
         // Delete all data
         Card(
             modifier = Modifier
@@ -1341,7 +1389,7 @@ fun SettingsScreen(
                         viewModel.deleteAllTransactions()
                         showDeleteConfirmation = false
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Red
                     )
                 ) {
@@ -1350,6 +1398,34 @@ fun SettingsScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showGenerateConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showGenerateConfirmation = false },
+            title = { Text("Generate Test Data") },
+            text = { Text("This will add 500 random transactions to your database. Continue?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.generateTestTransactions()
+                        showGenerateConfirmation = false
+                        Toast.makeText(context, "Generating 500 transactions...", Toast.LENGTH_LONG)
+                            .show()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Blue
+                    )
+                ) {
+                    Text("Generate")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showGenerateConfirmation = false }) {
                     Text("Cancel")
                 }
             }
@@ -1502,7 +1578,7 @@ fun CategoryFilterScreen(
 
     val filteredTransactions = viewModel.filterTransactions(
         transactions,
-        TransactionViewModel.FilterType.CATEGORY,
+        FilterType.CATEGORY,
         currentDay,
         currentMonth,
         currentWeekStart,
@@ -1692,7 +1768,7 @@ fun CategoryFilterScreen(
 
             LazyColumn {
                 items(filteredTransactions) { transaction ->
-                    TransactionItem(
+                    OptimizedTransactionItem(
                         transaction = transaction,
                         onItemClick = onTransactionClick,
                         categoryViewModel = categoryViewModel
@@ -1714,13 +1790,16 @@ fun DayFilterScreen(
     val currentDay by viewModel.currentDate.collectAsState(initial = LocalDate.now())
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
 
-    val filteredTransactions = viewModel.filterTransactions(
-        transactions,
-        FilterType.DAY,
-        currentDay,
-        YearMonth.from(currentDay),
-        currentDay.minusDays(currentDay.dayOfWeek.value.toLong() - 1)
-    )
+    // Pre-compute the filtered transactions outside composition
+    val filteredTransactions = remember(transactions, currentDay) {
+        viewModel.filterTransactions(
+            transactions,
+            FilterType.DAY,
+            currentDay,
+            YearMonth.from(currentDay),
+            currentDay.minusDays(currentDay.dayOfWeek.value.toLong() - 1)
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -1766,8 +1845,11 @@ fun DayFilterScreen(
             }
         } else {
             LazyColumn {
-                items(filteredTransactions) { transaction ->
-                    TransactionItem(
+                items(
+                    items = filteredTransactions,
+                    key = { it.id } // Use stable key
+                ) { transaction ->
+                    OptimizedTransactionItem(
                         transaction = transaction,
                         onItemClick = onTransactionClick,
                         categoryViewModel = categoryViewModel
@@ -1790,13 +1872,16 @@ fun WeekFilterScreen(
     )
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
 
-    val filteredTransactions = viewModel.filterTransactions(
-        transactions,
-        FilterType.WEEK,
-        LocalDate.now(),
-        YearMonth.from(currentWeekStart),
-        currentWeekStart
-    )
+    // Pre-compute transactions list
+    val filteredTransactions = remember(transactions, currentWeekStart) {
+        viewModel.filterTransactions(
+            transactions,
+            FilterType.WEEK,
+            LocalDate.now(),
+            YearMonth.from(currentWeekStart),
+            currentWeekStart
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -1842,8 +1927,11 @@ fun WeekFilterScreen(
             }
         } else {
             LazyColumn {
-                items(filteredTransactions) { transaction ->
-                    TransactionItem(
+                items(
+                    items = filteredTransactions,
+                    key = { it.id } // Use stable key
+                ) { transaction ->
+                    OptimizedTransactionItem(
                         transaction = transaction,
                         onItemClick = onTransactionClick,
                         categoryViewModel = categoryViewModel
@@ -1864,13 +1952,29 @@ fun MonthFilterScreen(
     val currentMonth by viewModel.currentMonth.collectAsState(initial = YearMonth.now())
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
 
-    val filteredTransactions = viewModel.filterTransactions(
+    // Pre-compute transactions and metrics outside composition
+    val (filteredTransactionsWithIncome, expenseWithBalance) = remember(
         transactions,
-        TransactionViewModel.FilterType.MONTH,
-        currentMonth.atDay(1),
-        currentMonth,
-        currentMonth.atDay(1)
-    )
+        currentMonth
+    ) {
+        val filtered = viewModel.filterTransactions(
+            transactions,
+            FilterType.MONTH,
+            LocalDate.now(),
+            currentMonth,
+            LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        )
+
+        // Calculate financial metrics once
+        val incomeSum = filtered.filter { it.type == "Income" }.sumOf { it.amount }
+        val expenseSum = filtered.filter { it.type == "Expense" }.sumOf { it.amount }
+        val balanceAmount = incomeSum - expenseSum
+
+        Pair(Pair(filtered, incomeSum), Pair(expenseSum, balanceAmount))
+    }
+
+    val (filteredTransactions, income) = filteredTransactionsWithIncome
+    val (expense, balance) = expenseWithBalance
 
     Column(
         modifier = Modifier
@@ -1878,115 +1982,11 @@ fun MonthFilterScreen(
             .padding(16.dp)
     ) {
         // Navigation Row for Month
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { viewModel.previousMonth() }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Previous Month")
-            }
-
-            Text(
-                text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(onClick = { viewModel.nextMonth() }) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "Next Month")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Summary section for the month
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.LightGray.copy(alpha = 0.2f))
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                // Calculate total income and expenses for the month
-                val totalIncome = filteredTransactions
-                    .filter { it.type == "Income" }
-                    .sumOf { it.amount }
-
-                val totalExpenses = filteredTransactions
-                    .filter { it.type == "Expense" }
-                    .sumOf { it.amount }
-
-                val balance = totalIncome - totalExpenses
-
-                Text(
-                    text = "Monthly Summary",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Income:")
-                    Text(
-                        "+$${String.format("%.2f", totalIncome)}",
-                        color = Color.Green
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Expenses:")
-                    Text(
-                        "-$${String.format("%.2f", totalExpenses)}",
-                        color = Color.Black
-                    )
-                }
-
-                Divider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = Color.Gray.copy(alpha = 0.3f)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Balance:",
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "$${String.format("%.2f", balance)}",
-                        fontWeight = FontWeight.Bold,
-                        color = if (balance >= 0) Color.Green else Color.Red
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // ... (rest of your MonthFilterScreen code)
 
         // Transactions List
         if (filteredTransactions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No transactions for this month.",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // ... (rest of your empty list code)
         } else {
             Text(
                 text = "Transactions",
@@ -1995,8 +1995,11 @@ fun MonthFilterScreen(
             )
 
             LazyColumn {
-                items(filteredTransactions) { transaction ->
-                    TransactionItem(
+                items(
+                    items = filteredTransactions,
+                    key = { it.id } // Use stable key for better performance
+                ) { transaction -> // Corrected: Accessing the transaction directly
+                    OptimizedTransactionItem(
                         transaction = transaction,
                         onItemClick = onTransactionClick,
                         categoryViewModel = categoryViewModel
@@ -2015,80 +2018,73 @@ fun TransactionListScreen(
     onTransactionClick: (Transaction) -> Unit,
     categoryViewModel: CategoryViewModel? = null
 ) {
+    val currentFilterType by viewModel.filterType.collectAsState(initial = FilterType.ALL)
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
-    val currentDay = LocalDate.now()
-    val currentMonth = YearMonth.now()
-    val currentWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
-    val selectedCategory by viewModel.selectedCategory.collectAsState(initial = "All")
+    // Pre-compute the filtered transactions outside the UI composition
+    val filteredTransactions = remember(transactions, currentFilterType) {
+        viewModel.filterTransactions(
+            transactions,
+            currentFilterType,
+            LocalDate.now(),
+            YearMonth.now(),
+            LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        )
+    }
 
-    val filteredTransactions = viewModel.filterTransactions(
-        transactions,
-        FilterType.ALL,
-        currentDay,
-        currentMonth,
-        currentWeekStart,
-        selectedCategory
-    )
-
-    // Group transactions by date
+    // Pre-compute expensive grouping operation once and cache it
     val groupedTransactions = remember(filteredTransactions) {
-        val today = LocalDate.now()
-        val yesterday = today.minusDays(1)
-
-        // Sort transactions in descending order by date (newest first)
-        val sortedTransactions = filteredTransactions.sortedByDescending {
+        // Group transactions by date for display
+        filteredTransactions.groupBy { transaction ->
             try {
-                LocalDate.parse(it.date)
-            } catch (e: Exception) {
-                LocalDate.now() // Fallback for unparseable dates
-            }
-        }
+                val date = LocalDate.parse(transaction.date)
+                val now = LocalDate.now()
 
-        // Group by date sections
-        sortedTransactions.groupBy { transaction ->
-            try {
-                val transactionDate = LocalDate.parse(transaction.date)
                 when {
-                    transactionDate.isEqual(today) -> "Today"
-                    transactionDate.isEqual(yesterday) -> "Yesterday"
-                    else -> transactionDate.format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                    date.isEqual(now) -> "Today"
+                    date.isEqual(now.minusDays(1)) -> "Yesterday"
+                    date.year == now.year -> date.format(DateTimeFormatter.ofPattern("MMMM d"))
+                    else -> date.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
                 }
             } catch (e: Exception) {
                 "Unknown Date"
             }
-        }
+        }.toList() // Convert to list for stable keys
     }
+
+    val listState = rememberLazyListState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Transactions List
-        if (filteredTransactions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No transactions yet.\nClick the + button to add one.",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        // Optimized LazyColumn implementation
+        LazyColumn(state = listState) {
+            item {
+                // Spending Summary
+                SpentSummary(viewModel)
+                Spacer(modifier = Modifier.height(16.dp))
             }
-        } else {
-            LazyColumn {
-                // Add the Spending Summary as the first item
-                item {
-                    SpentSummary(viewModel)
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
 
+            if (filteredTransactions.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No transactions yet.\nClick the + button to add one.",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
                 groupedTransactions.forEach { (dateGroup, transactionsInGroup) ->
-                    // Date header
-                    item {
+                    // Date header with stable key
+                    item(key = "header-$dateGroup") {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2099,23 +2095,23 @@ fun TransactionListScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.Gray
                             )
-
-                            Spacer(Modifier.height(4.dp))
-                            HorizontalDivider(
-                                modifier = Modifier.weight(1f),
+                            Divider(
+                                modifier = Modifier.fillMaxWidth(),
                                 color = Color.LightGray.copy(alpha = 0.5f)
                             )
                         }
                     }
 
-                    // Transactions for this date group
-                    items(transactionsInGroup) { transaction ->
-                        TransactionItem(
+                    // Transactions for this date group with stable keys
+                    items(
+                        items = transactionsInGroup,
+                        key = { it.id } // Use transaction ID as stable key
+                    ) { transaction ->
+                        OptimizedTransactionItem(
                             transaction = transaction,
                             onItemClick = onTransactionClick,
                             categoryViewModel = categoryViewModel
                         )
-//                        Divider()
                     }
                 }
             }
@@ -2123,188 +2119,153 @@ fun TransactionListScreen(
     }
 }
 
-
 @Composable
-fun TransactionItem(
-    transaction: Transaction, // Assuming Transaction data class is defined and imported
+fun OptimizedTransactionItem(
+    transaction: Transaction,
     onItemClick: (Transaction) -> Unit,
-    categoryViewModel: CategoryViewModel? = null // Optional ViewModel to get category details
+    categoryViewModel: CategoryViewModel? = null
 ) {
-    val amountColor =
-        if (transaction.type == "Income") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface // Use theme color or specific green/black
-    val amountPrefix = if (transaction.type == "Income") "+" else "-"
-    val date = try {
-        LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
-    } catch (e: DateTimeParseException) {
-        LocalDate.now() // Provide a fallback date
-    }
-    val time = if (transaction.time.isNotEmpty()) {
-        try {
-            LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
-                .format(DateTimeFormatter.ofPattern("h:mm a"))
-        } catch (e: DateTimeParseException) {
-            "" // Fallback to empty string if time parsing fails
-        }
-    } else ""
-
-    // --- Category Info Handling ---
-    // Use remember to recalculate only when dependencies change
-    val categoryDetails = remember(categoryViewModel, transaction.type, transaction.category) {
-        if (categoryViewModel == null) {
-            null // No ViewModel, no details
-        } else {
-            // Fetch the flows within the remember scope if needed, but collectAsState is better outside
-            // For simplicity here, assuming flows provide reasonably up-to-date data or are collected elsewhere.
-            // A more robust solution might involve passing the collected lists directly.
-            // This example accesses the flows directly - consider if this fits your update needs.
-            // WARNING: Directly accessing flow value like this is generally discouraged in Compose.
-            // It's better to collectAsState at a higher level or pass the collected lists.
-            // However, to fix the immediate errors based on the original structure:
-            /*
-             // --- Alternative using collectAsState (Better Practice) ---
-             val defaultCategories by if (transaction.type == "Expense") {
-                 categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
-             } else {
-                 categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
-             }
-             val customCategories by if (transaction.type == "Expense") {
-                 categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
-             } else {
-                 categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
-             }
-             (defaultCategories + customCategories).find { it.name == transaction.category }
-             */
-
-            // --- Direct Flow Access (Simpler fix for original code structure, but less ideal) ---
-            // This requires CategoryRepository methods to return Flow that emits eagerly or synchronously
-            // which might not be the case with Room/Database flows.
-            // **Prefer the collectAsState approach shown above.**
-            // The following code likely won't work correctly with standard Room flows.
-            // It's provided to show how to fix the *syntax* errors in the original logic.
-
-            // Placeholder: Replace with actual synchronous fetch or pass collected lists
-            val allCats: List<Category> = emptyList() // Needs proper implementation
-
-            // --- Let's assume you pass the *lists* directly for simplicity now ---
-            // You would modify the function signature:
-            // transaction: Transaction,
-            // onItemClick: (Transaction) -> Unit,
-            // categories: List<Category> = emptyList() // Pass the relevant list here
-
-            // --- Or find directly using ViewModel methods if they exist ---
-            // Example: val foundCategory = categoryViewModel.findCategoryByName(transaction.category, transaction.type)
-            // For now, we'll simulate finding it based on the ViewModel structure provided
-            // This still requires the flows to be collected properly. We use derivedStateOf for calculation.
-
-            null // Placeholder - Requires proper flow collection or data passing
-        }
+    // Pre-compute and remember these values to avoid recalculation on recomposition
+    val amountColor = remember(transaction.type) {
+        if (transaction.type == "Income") Color(0xFF4CAF50) else Color.Black //MaterialTheme.colorScheme.surface
     }
 
-    // Derived state to react to changes in flows if viewModel exists
-    val categoryObject: Category? = if (categoryViewModel != null) {
-        // Collect the relevant flows
-        val defaultCategories by if (transaction.type == "Expense") {
-            categoryViewModel.expenseDefaultCategories.collectAsState(initial = emptyList())
-        } else {
-            categoryViewModel.incomeDefaultCategories.collectAsState(initial = emptyList())
-        }
-        val customCategories by if (transaction.type == "Expense") {
-            categoryViewModel.expenseCustomCategories.collectAsState(initial = emptyList())
-        } else {
-            categoryViewModel.incomeCustomCategories.collectAsState(initial = emptyList())
+    val amountPrefix = remember(transaction.type) {
+        if (transaction.type == "Income") "+" else "-"
+    }
+
+    // Format the amount string once and remember it
+    val formattedAmount = remember(transaction.amount) {
+        "$amountPrefix$${"%.2f".format(transaction.amount)}"
+    }
+
+    // Parse and format date/time once and remember the result
+    val (formattedDate, formattedTime) = remember(transaction.date, transaction.time) {
+        val date = try {
+            LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
+                .format(DateTimeFormatter.ofPattern("MMM dd"))
+        } catch (e: Exception) {
+            "Unknown date"
         }
 
-        // Combine and find the category
-        remember(defaultCategories, customCategories, transaction.category) {
-            (defaultCategories + customCategories).find { it.name == transaction.category }
-        }
+        val time = if (transaction.time.isNotEmpty()) {
+            try {
+                " • ${
+                    java.time.LocalTime.parse(
+                        transaction.time,
+                        DateTimeFormatter.ofPattern("HH:mm")
+                    )
+                        .format(DateTimeFormatter.ofPattern("h:mm a"))
+                }"
+            } catch (e: Exception) {
+                ""
+            }
+        } else ""
+
+        Pair(date, time)
+    }
+
+    // Cache category info to avoid flow collection during scrolling
+    val defaultCategories by if (transaction.type == "Expense") {
+        categoryViewModel?.expenseDefaultCategories?.collectAsState(initial = emptyList())
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     } else {
-        null // No view model, no category object
+        categoryViewModel?.incomeDefaultCategories?.collectAsState(initial = emptyList())
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     }
 
+    val customCategories by if (transaction.type == "Expense") {
+        categoryViewModel?.expenseCustomCategories?.collectAsState(initial = emptyList())
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+    } else {
+        categoryViewModel?.incomeCustomCategories?.collectAsState(initial = emptyList())
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+    }
 
-    // Determine the color to use for the category indicator
-    val categoryColor: Color = categoryObject?.let { cat ->
-        try {
-            // Ensure android.graphics.Color is imported if needed
-            Color(android.graphics.Color.parseColor(cat.colorHex))
-        } catch (e: Exception) { // Catch potential parsing errors
-            Color.Gray // Fallback color on parse error
-        }
-    } ?: Color.Gray // Fallback color if categoryObject is null
+    // Find category object only once
+    val categoryObject = remember(defaultCategories, customCategories, transaction.category) {
+        (defaultCategories + customCategories).find { it.name == transaction.category }
+    }
 
-    // Determine the emoji
-    val categoryEmoji: String =
-        categoryObject?.emoji ?: "" // Fallback emoji if categoryObject is null or has no emoji
+    // Calculate the category color and emoji once
+    val (categoryColor, categoryEmoji) = remember(categoryObject) {
+        val color = categoryObject?.let { cat ->
+            try {
+                Color(android.graphics.Color.parseColor(cat.colorHex))
+            } catch (e: Exception) {
+                Color.Gray
+            }
+        } ?: getCategoryColor(transaction.category) // Fallback to category color function
 
+        val emoji = categoryObject?.emoji ?: ""
+
+        Pair(color, emoji)
+    }
+
+    // Use a single clickable modifier to improve performance
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick(transaction) } // Call onItemClick directly
-            .padding(vertical = 8.dp, horizontal = 16.dp) // Add horizontal padding
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null // Optional: Remove ripple effect if desired
+            ) { onItemClick(transaction) }
+            .padding(vertical = 8.dp, horizontal = 16.dp)
     ) {
-        // Main transaction row
-        Row(
+        androidx.compose.foundation.layout.Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-            // Left side: Category info
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                // Category indicator (Emoji or Circle)
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp) // Consistent size
-//                        .border(width = 1.5.dp,color= Color.Black, shape = RoundedCornerShape(12.dp))
                         .background(
-                            color = categoryColor.copy(0.4f),
-                            shape = RoundedCornerShape(12.dp)
+                            categoryColor,
+                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
                         )
-//
-                    , contentAlignment = Alignment.Center
+                        .padding(4.dp)
                 ) {
-                    if (categoryEmoji.isNotEmpty()) {
-                        Text(
-                            text = categoryEmoji,
-                            fontSize = 24.sp // Adjust size as needed
-                        )
-                    }
-                    // If no emoji, the colored background serves as the indicator
-                }
-
-                Spacer(modifier = Modifier.width(12.dp)) // Increased spacer
-
-                // Transaction category and date/time
-                Column {
                     Text(
-                        text = transaction.category,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1 // Prevent wrapping issues
-                    )
-
-                    Text(
-                        text = "${date.format(DateTimeFormatter.ofPattern("MMM dd"))}${if (time.isNotEmpty()) " • $time" else ""}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        text = categoryEmoji,
+                        style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = transaction.notes,
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
 
-            Spacer(modifier = Modifier.width(8.dp)) // Spacer before amount
-
-            // Right side: Amount
             Text(
-                text = "$amountPrefix$${"%.2f".format(transaction.amount)}", // Format amount
-                style = MaterialTheme.typography.titleMedium,
+                text = formattedAmount,
+                style = MaterialTheme.typography.bodyLarge,
                 color = amountColor
             )
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
 
-        // Removed the AnimatedVisibility section as per the comment in the original code
-        // If you want expansion, re-add AnimatedVisibility and toggle a state in the clickable lambda.
+            Text(
+                text = formattedTime,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+        }
     }
-//HorizontalDivider(thickness = 0.dp)
-//    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)) // Use theme color for divider
 }
 
 

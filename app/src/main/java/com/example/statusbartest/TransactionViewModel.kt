@@ -63,6 +63,68 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
     fun deleteAllTransactions() = viewModelScope.launch(Dispatchers.IO) {
         repository.deleteAll()
     }
+
+    fun generateTestTransactions(count: Int = 500) = viewModelScope.launch(Dispatchers.IO) {
+        val random = java.util.Random()
+        val today = LocalDate.now()
+        
+        // Generate transactions for the last 60 days
+        for (i in 0 until count) {
+            // Random date within the last 60 days
+            val daysAgo = random.nextInt(60)
+            val date = today.minusDays(daysAgo.toLong())
+            
+            // Random time
+            val hour = random.nextInt(24)
+            val minute = random.nextInt(60)
+            val time = LocalTime.of(hour, minute)
+            
+            // Random type (70% expense, 30% income)
+            val type = if (random.nextFloat() < 0.7f) "Expense" else "Income"
+            
+            // Select category based on type
+            val categories = if (type == "Expense") {
+                expenseCategories
+            } else {
+                incomeCategories
+            }
+            val category = categories[random.nextInt(categories.size)]
+            
+            // Random amount between $1 and $1000
+            val amount = 1 + random.nextDouble() * 999
+            
+            // Generate notes
+            val notes = when {
+                category == "Food" -> listOf(
+                    "Groceries", "Restaurant", "Coffee", "Lunch", "Dinner", "Breakfast"
+                )
+                category == "Transport" -> listOf(
+                    "Gas", "Uber", "Train ticket", "Bus fare", "Taxi"
+                )
+                category == "Shopping" -> listOf(
+                    "Clothes", "Electronics", "Household items", "Books", "Gifts"
+                )
+                category == "Salary" -> listOf(
+                    "Monthly salary", "Bonus", "Overtime"
+                )
+                else -> listOf(
+                    "Regular payment", "One-time", "Special", "Planned", "Unexpected"
+                )
+            }
+            val note = notes[random.nextInt(notes.size)]
+            
+            // Insert the transaction
+            insert(
+                amount = amount,
+                type = type,
+                date = date,
+                time = time,
+                category = category,
+                notes = note
+            )
+        }
+    }
+
     fun filterTransactions(
         transactions: List<Transaction>,
         type: FilterType,
