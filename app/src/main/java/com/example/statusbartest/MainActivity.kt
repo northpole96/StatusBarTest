@@ -2127,7 +2127,7 @@ fun OptimizedTransactionItem(
 ) {
     // Pre-compute and remember these values to avoid recalculation on recomposition
     val amountColor = remember(transaction.type) {
-        if (transaction.type == "Income") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+        if (transaction.type == "Income") Color(0xFF4CAF50) else Color.Black
     }
 
     val amountPrefix = remember(transaction.type) {
@@ -2149,15 +2149,17 @@ fun OptimizedTransactionItem(
 
         val formattedTime = if (transaction.time.isNotEmpty()) {
             try {
-                " • ${LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
-                    .format(DateTimeFormatter.ofPattern("h:mm a"))}"
+                " • ${
+                    LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
+                        .format(DateTimeFormatter.ofPattern("h:mm a"))
+                }"
             } catch (e: Exception) {
                 ""
             }
         } else ""
-        
+
         val datetime = "${parsedDate.format(DateTimeFormatter.ofPattern("MMM dd"))}$formattedTime"
-        
+
         Pair(parsedDate, datetime)
     }
 
@@ -2261,7 +2263,7 @@ fun OptimizedTransactionItem(
                 color = amountColor
             )
         }
-        
+
         // Show notes if present
         if (transaction.notes.isNotEmpty()) {
             Text(
