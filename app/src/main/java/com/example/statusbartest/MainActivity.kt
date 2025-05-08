@@ -2127,7 +2127,7 @@ fun OptimizedTransactionItem(
 ) {
     // Pre-compute and remember these values to avoid recalculation on recomposition
     val amountColor = remember(transaction.type) {
-        if (transaction.type == "Income") Color(0xFF4CAF50) else Color.Black //MaterialTheme.colorScheme.surface
+        if (transaction.type == "Income") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
     }
 
     val amountPrefix = remember(transaction.type) {
@@ -2140,46 +2140,42 @@ fun OptimizedTransactionItem(
     }
 
     // Parse and format date/time once and remember the result
-    val (formattedDate, formattedTime) = remember(transaction.date, transaction.time) {
-        val date = try {
+    val (date, formattedDateTime) = remember(transaction.date, transaction.time) {
+        val parsedDate = try {
             LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
-                .format(DateTimeFormatter.ofPattern("MMM dd"))
         } catch (e: Exception) {
-            "Unknown date"
+            LocalDate.now() // Fallback date
         }
 
-        val time = if (transaction.time.isNotEmpty()) {
+        val formattedTime = if (transaction.time.isNotEmpty()) {
             try {
-                " • ${
-                    java.time.LocalTime.parse(
-                        transaction.time,
-                        DateTimeFormatter.ofPattern("HH:mm")
-                    )
-                        .format(DateTimeFormatter.ofPattern("h:mm a"))
-                }"
+                " • ${LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
+                    .format(DateTimeFormatter.ofPattern("h:mm a"))}"
             } catch (e: Exception) {
                 ""
             }
         } else ""
-
-        Pair(date, time)
+        
+        val datetime = "${parsedDate.format(DateTimeFormatter.ofPattern("MMM dd"))}$formattedTime"
+        
+        Pair(parsedDate, datetime)
     }
 
     // Cache category info to avoid flow collection during scrolling
     val defaultCategories by if (transaction.type == "Expense") {
         categoryViewModel?.expenseDefaultCategories?.collectAsState(initial = emptyList())
-            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+            ?: remember { mutableStateOf(emptyList()) }
     } else {
         categoryViewModel?.incomeDefaultCategories?.collectAsState(initial = emptyList())
-            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+            ?: remember { mutableStateOf(emptyList()) }
     }
 
     val customCategories by if (transaction.type == "Expense") {
         categoryViewModel?.expenseCustomCategories?.collectAsState(initial = emptyList())
-            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+            ?: remember { mutableStateOf(emptyList()) }
     } else {
         categoryViewModel?.incomeCustomCategories?.collectAsState(initial = emptyList())
-            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
+            ?: remember { mutableStateOf(emptyList()) }
     }
 
     // Find category object only once
@@ -2207,62 +2203,74 @@ fun OptimizedTransactionItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null // Optional: Remove ripple effect if desired
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null // Optional: Remove ripple effect for better performance
             ) { onItemClick(transaction) }
             .padding(vertical = 8.dp, horizontal = 16.dp)
     ) {
-        androidx.compose.foundation.layout.Row(
+        // Main transaction row - styled like the main branch
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            androidx.compose.foundation.layout.Row(
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
+            // Left side: Category info
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // Category indicator (Emoji or Circle) - using main branch styling
                 Box(
                     modifier = Modifier
+                        .size(48.dp)
                         .background(
-                            categoryColor,
-                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                        )
-                        .padding(4.dp)
+                            color = categoryColor.copy(0.4f),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
+                    if (categoryEmoji.isNotEmpty()) {
+                        Text(
+                            text = categoryEmoji,
+                            fontSize = 24.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Transaction category and date/time
+                Column {
                     Text(
-                        text = categoryEmoji,
-                        style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                        text = transaction.category,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1
+                    )
+
+                    Text(
+                        text = formattedDateTime,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = transaction.notes,
-                    style = MaterialTheme.typography.bodyLarge
-                )
             }
 
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Right side: Amount
             Text(
                 text = formattedAmount,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = amountColor
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-        ) {
+        
+        // Show notes if present
+        if (transaction.notes.isNotEmpty()) {
             Text(
-                text = formattedDate,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-
-            Text(
-                text = formattedTime,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                text = transaction.notes,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.DarkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 60.dp, top = 4.dp)
             )
         }
     }
