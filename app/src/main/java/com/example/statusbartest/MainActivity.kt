@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -1413,7 +1414,8 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.generateTestTransactions()
                         showGenerateConfirmation = false
-                        Toast.makeText(context, "Generating 500 transactions...", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Generating 500 transactions...", Toast.LENGTH_LONG)
+                            .show()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Blue
@@ -2021,14 +2023,13 @@ fun TransactionListScreen(
 
     // Pre-compute the filtered transactions outside the UI composition
     val filteredTransactions = remember(transactions, currentFilterType) {
-        val filterResult = viewModel.filterTransactions(
+        viewModel.filterTransactions(
             transactions,
             currentFilterType,
             LocalDate.now(),
             YearMonth.now(),
             LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         )
-        filterResult
     }
 
     // Pre-compute expensive grouping operation once and cache it
@@ -2051,26 +2052,36 @@ fun TransactionListScreen(
         }.toList() // Convert to list for stable keys
     }
 
+    val listState = rememberLazyListState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        if (filteredTransactions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No transactions yet.\nClick the + button to add one.",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        // Optimized LazyColumn implementation
+        LazyColumn(state = listState) {
+            item {
+                // Spending Summary
+                SpentSummary(viewModel)
+                Spacer(modifier = Modifier.height(16.dp))
             }
-        } else {
-            // Optimized LazyColumn implementation
-            LazyColumn {
+
+            if (filteredTransactions.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No transactions yet.\nClick the + button to add one.",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
                 groupedTransactions.forEach { (dateGroup, transactionsInGroup) ->
                     // Date header with stable key
                     item(key = "header-$dateGroup") {
@@ -2133,17 +2144,20 @@ fun OptimizedTransactionItem(
         val date = try {
             LocalDate.parse(transaction.date, DateTimeFormatter.ISO_LOCAL_DATE)
                 .format(DateTimeFormatter.ofPattern("MMM dd"))
-        } catch (e: DateTimeParseException) {
+        } catch (e: Exception) {
             "Unknown date"
         }
 
         val time = if (transaction.time.isNotEmpty()) {
             try {
                 " • ${
-                    LocalTime.parse(transaction.time, DateTimeFormatter.ofPattern("HH:mm"))
+                    java.time.LocalTime.parse(
+                        transaction.time,
+                        DateTimeFormatter.ofPattern("HH:mm")
+                    )
                         .format(DateTimeFormatter.ofPattern("h:mm a"))
                 }"
-            } catch (e: DateTimeParseException) {
+            } catch (e: Exception) {
                 ""
             }
         } else ""
@@ -2154,18 +2168,18 @@ fun OptimizedTransactionItem(
     // Cache category info to avoid flow collection during scrolling
     val defaultCategories by if (transaction.type == "Expense") {
         categoryViewModel?.expenseDefaultCategories?.collectAsState(initial = emptyList())
-            ?: remember { mutableStateOf(emptyList()) }
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     } else {
         categoryViewModel?.incomeDefaultCategories?.collectAsState(initial = emptyList())
-            ?: remember { mutableStateOf(emptyList()) }
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     }
 
     val customCategories by if (transaction.type == "Expense") {
         categoryViewModel?.expenseCustomCategories?.collectAsState(initial = emptyList())
-            ?: remember { mutableStateOf(emptyList()) }
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     } else {
         categoryViewModel?.incomeCustomCategories?.collectAsState(initial = emptyList())
-            ?: remember { mutableStateOf(emptyList()) }
+            ?: remember { androidx.compose.runtime.mutableStateOf(emptyList()) }
     }
 
     // Find category object only once
@@ -2193,58 +2207,62 @@ fun OptimizedTransactionItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                 indication = null // Optional: Remove ripple effect if desired
             ) { onItemClick(transaction) }
             .padding(vertical = 8.dp, horizontal = 16.dp)
     ) {
-        Row(
+        androidx.compose.foundation.layout.Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
                         .background(
-                            color = categoryColor.copy(0.4f),
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (categoryEmoji.isNotEmpty()) {
-                        Text(
-                            text = categoryEmoji,
-                            fontSize = 24.sp
+                            categoryColor,
+                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
                         )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
+                        .padding(4.dp)
+                ) {
                     Text(
-                        text = transaction.category,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Text(
-                        text = "$formattedDate$formattedTime",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        text = categoryEmoji,
+                        style = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = transaction.notes,
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
 
             Text(
                 text = formattedAmount,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = amountColor
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+
+            Text(
+                text = formattedTime,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
             )
         }
     }
